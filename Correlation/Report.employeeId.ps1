@@ -52,9 +52,9 @@ $config = @{
 #Duplicate Correlations
     $duplicates = [System.Collections.ArrayList]@();
     $duplicatesbyUserId = ($results.match | Group-Object -Property userId) | Where-Object { $_.Count -gt 1 }
-    if($duplicatesbyUserId -is [System.Array]) { [void]$duplicates.AddRange($duplicatesbyUserId) } else { [void]$duplicates.Add($duplicatesbyUserId) };
+    if($duplicatesbyUserId -is [System.Array]) { [void]$duplicates.AddRange($duplicatesbyUserId) } else { if($duplicatesbyUserId -ne $null) { [void]$duplicates.Add($duplicatesbyUserId) } };
     $duplicatesbyId = ($results.match | Group-Object -Property Id) | Where-Object { $_.Count -gt 1 }
-    if($duplicatesbyId -is [System.Array]) { [void]$duplicates.AddRange($duplicatesbyId) } else { [void]$duplicates.Add($duplicatesbyId) };
+    if($duplicatesbyId -is [System.Array]) { [void]$duplicates.AddRange($duplicatesbyId) } else { if($duplicatesbyId -ne $null) { [void]$duplicates.Add($duplicatesbyId) } };
 
 #Results
     Write-Verbose -Verbose "$($results.create.count) Create(s)"
