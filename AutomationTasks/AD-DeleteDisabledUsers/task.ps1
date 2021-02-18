@@ -94,7 +94,7 @@ foreach($user in $disabledUsers)
         #Set Date based on DeleteAfterDays config
         $date = (Get-Date).AddDays($config.DeleteAfterDays).ToString('yyyy-MM-dd');
         
-        $message = "Setting User Delete Date [$($user.sAMAccountName)] - [$($deleteDate)]";
+        $message = "Setting User Delete Date [$($user.sAMAccountName)] - [$($date)]";
         if($config.Enabled)
         {
             Write-HidStatus -Event Warning -Message $message;
