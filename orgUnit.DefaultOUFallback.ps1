@@ -4,11 +4,19 @@ $m = $manager | ConvertFrom-Json
 $a = $accountReference | ConvertFrom-Json
 $ma = $managerAccountReference | ConvertFrom-Json
 $success = $false
+
+#Get Primary Domain Controller
+$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+
+
 $calc_org_unit = ((Get-ADDomain).DNSRoot + "/Student Accounts/Active/{0}/{1}" `
         -f $p.PrimaryContract.Department.ExternalID `
             ,$p.custom.GradYear)
+			
 $default_org_unit = (Get-ADDomain).DNSRoot + "/Student Accounts"
-$organizationalUnit = Get-ADOrganizationalUnit -Filter * -Property canonicalName | ?{$_.canonicalName -eq $calc_org_unit}
+
+
+$organizationalUnit = Get-ADOrganizationalUnit -Filter * -Property canonicalName -Server $pdc | ?{$_.canonicalName -eq $calc_org_unit}
 if($organizationalUnit -ne $null)
 {
     $success = $True
@@ -17,7 +25,7 @@ if($organizationalUnit -ne $null)
 else # Check if Default OU Exists
 {
     Write-Verbose -Verbose "Did not find OU: $calc_org_unit"
-    $organizationalUnit = Get-ADOrganizationalUnit -Filter * -Property canonicalName | ?{$_.canonicalName -eq ($default_org_unit)}
+    $organizationalUnit = Get-ADOrganizationalUnit -Filter * -Property canonicalName -Server $pdc | ?{$_.canonicalName -eq ($default_org_unit)}
     if($organizationalUnit -ne $null)
     {
         Write-Verbose -Verbose ("Using Default OU: {0}" -f $organizationalUnit.canonicalName)
