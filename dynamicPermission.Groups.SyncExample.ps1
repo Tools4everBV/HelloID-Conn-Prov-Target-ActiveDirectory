@@ -4,8 +4,12 @@ $aRef = $accountReference | ConvertFrom-Json;
 $mRef = $managerAccountReference | ConvertFrom-Json;
 $pRef = $permissionReference | ConvertFrom-json;
 $c = $configuration | ConvertFrom-Json;
+
+#Get Primary Domain Controller
 $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+
 $success = $True;
+
 function Get-ADSanitizeGroupName
 {
     param(
@@ -23,6 +27,7 @@ function Get-ADSanitizeGroupName
     $newName = $newName -replace '\.\.','.';
     return $newName;
 }
+
 # Operation is a script parameter which contains the action HelloID wants to perform for this permission
 # It has one of the following values: "grant", "revoke", "update"
 $o = $operation | ConvertFrom-Json;
@@ -31,14 +36,18 @@ if($dryRun -eq $True) {
     # Operation is empty for preview (dry run) mode, that's why we set it here.
     $o = "grant";
 }
+
 $auditLogs = New-Object Collections.Generic.List[PSCustomObject];
 $dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject];
 $currentPermissions = @{};
+
 #Current Automated Groups
 $agGroups = Get-ADGroup -LDAPFilter "(adminDescription=Automated Group)" -Server $pdc
+
 #Get User Current Automation Groups
 Get-ADPrincipalGroupMembership -Identity $aRef -Server $pdc | Where-Object { $agGroups.SID -contains $_.SID } | ForEach-Object { $currentPermissions[$_.name] = $_.name; }
 $desiredPermissions = @{};
+
 foreach($contract in $p.Contracts) {
     # Skip Base contract
     if($contract.Title.Name -eq "Employee") { continue; }
@@ -54,12 +63,12 @@ foreach($contract in $p.Contracts) {
         $teamId = Get-ADSanitizeGroupName -Name $contract.team.ExternalId;
         
         # Debug Data
-        #Write-Verbose -Verbose "Department Id: $($departmentId)";
-        #Write-Verbose -Verbose "Department Name: $($departmentName)";
-        #Write-Verbose -Verbose "Title: $($title)";
-        #Write-Verbose -Verbose "Job Category: $($jobCategory)";
-        #Write-Verbose -Verbose "Team Name: $($teamName)";
-        #Write-Verbose -Verbose "Team Id: $($teamId)";
+        #Write-Information "Department Id: $($departmentId)";
+        #Write-Information "Department Name: $($departmentName)";
+        #Write-Information "Title: $($title)";
+        #Write-Information "Job Category: $($jobCategory)";
+        #Write-Information "Team Name: $($teamName)";
+        #Write-Information "Team Id: $($teamId)";
         
         $desiredPermissions["AG.$($jobCategory)"] = "AG.$($jobCategory)";
         $desiredPermissions["AG.$($departmentName).$($jobCategory)"] = "AG.$($departmentName).$($jobCategory)";
@@ -77,7 +86,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
     });
     if(-Not $currentPermissions.ContainsKey($permission.Name))
     {
-        Write-Verbose -Verbose "Add - $($permission.Name)";
+        Write-Information "Add - $($permission.Name)";
         $permissionSuccess = $false;
         try{
             # If not dry run, add to AD Group
@@ -86,7 +95,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
         }
         catch
         {
-            Write-Verbose -Verbose "Add Failed - $($permission.Name): $($_)";
+            Write-Error "Add Failed - $($permission.Name): $($_)";
             $success = $False;
         }
         $auditLogs.Add([PSCustomObject]@{
@@ -96,19 +105,21 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
         });
     }    
 }
+
 # Compare current with desired permissions and revoke permissions
 $newCurrentPermissions = @{};
+
 foreach($permission in $currentPermissions.GetEnumerator()) {    
     if(-Not $desiredPermissions.ContainsKey($permission.Name))
     {
-        Write-Verbose -Verbose "Remove - $($permission.Name)";
+        Write-Information "Remove - $($permission.Name)";
         
         $permissionSuccess = $false;
         try{
             # If not dry run, remove from AD Group
             if(-Not($dryRun -eq $True)) 
             { 
-                Write-Verbose -Verbose "Remove-ADGroupMember -Identity $($permission.Name) -Members @($($accountReference)) -Server $($pdc) -Confirm:false"
+                Write-Information "Remove-ADGroupMember -Identity $($permission.Name) -Members @($($accountReference)) -Server $($pdc) -Confirm:false"
                 Remove-ADGroupMember -Identity $permission.Name -Members @($aRef) -Server $pdc -Confirm:$false;
             
             }
@@ -116,7 +127,7 @@ foreach($permission in $currentPermissions.GetEnumerator()) {
         }
         catch
         {
-            Write-Verbose -Verbose "Remove Failed - $($permission.Name): $($_)";
+            Write-Error "Remove Failed - $($permission.Name): $($_)";
             $success = $False;
         }
         $auditLogs.Add([PSCustomObject]@{
@@ -131,7 +142,7 @@ foreach($permission in $currentPermissions.GetEnumerator()) {
 # Update current permissions
 #if ($o -eq "update") {
 #    foreach($permission in $newCurrentPermissions.GetEnumerator()) {    
-#        Write-Verbose -Verbose "Update - $($permission.Name)";
+#        Write-Information "Update - $($permission.Name)";
 #        $auditLogs.Add([PSCustomObject]@{
 #            Action = "UpdateDynamicPermission";
 #            Message = "Updated access to department share $($permission.Value)";
@@ -139,13 +150,15 @@ foreach($permission in $currentPermissions.GetEnumerator()) {
 #        });
 #    }
 #}
+
 if(($dynamicPermissions.count) -lt 1) {
-    Write-Verbose -Verbose "No dynamic groups generated"
+    Write-Information "No dynamic groups generated"
     $dynamicPermissions.Add([PSCustomObject]@{
             DisplayName = "NO GROUPS";
             Reference = [PSCustomObject]@{ Id = "NO GROUPS" };
     });
 }
+
 # Send results
 $result = [PSCustomObject]@{
     Success = $success;
