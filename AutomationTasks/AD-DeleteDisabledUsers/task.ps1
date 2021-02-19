@@ -47,7 +47,6 @@ $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain |
 #Get Disabled Users from Target OU
 $disabledUsers = Get-ADUser -LDAPFilter "(UserAccountControl:1.2.840.113556.1.4.803:=2)" -SearchBase $config.TargetOU -Properties Description -Server $pdc
 
-
 $i=0;
 #Loop over Disabled Users
 foreach($user in $disabledUsers)
@@ -94,13 +93,13 @@ foreach($user in $disabledUsers)
         #Set Date based on DeleteAfterDays config
         $date = (Get-Date).AddDays($config.DeleteAfterDays).ToString('yyyy-MM-dd');
         
-        $message = "Setting User Delete Date [$($user.sAMAccountName)] - [$($deleteDate)]";
+        $message = "Setting User Delete Date [$($user.sAMAccountName)] - [$($date)]";
         if($config.Enabled)
         {
             Write-HidStatus -Event Warning -Message $message;
             try
             {
-                Set-ADUser -Identity $user.SamAccountName -Replace @{ Description= "Student - AUTOMATED - Delete After: $($date)"} -Server $pdc
+                Set-ADUser -Identity $user.SamAccountName -Replace @{ Description= "$($config.DescriptionPrefix)$($date)"} -Server $pdc
                 Write-HidSummary -Event Success -Message "Set User Delete Date [$($user.sAMAccountName)]"
             }
             catch
@@ -111,7 +110,7 @@ foreach($user in $disabledUsers)
         }
         else
         {
-            Write-Verbose -Verbose "Read-Only, $($message)"
+           Write-HidStatus -Event Information "Read-Only, $($message)"
         }
     }
 }
