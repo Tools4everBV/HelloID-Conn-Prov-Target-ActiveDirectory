@@ -10,7 +10,7 @@ $c = $configuration | ConvertFrom-Json
 # It has one of the following values: "grant", "revoke", "update"
 $o = $operation | ConvertFrom-Json
 
-if($dryRun -eq $True) {
+if(-Not($dryRun -eq $True)) {
     # Operation is empty for preview (dry run) mode, that's why we set it here.
     $o = "grant"
 }
@@ -56,7 +56,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
     {
         # Add user to Membership
         $permissionSuccess = $true
-        if(-Not $dryRun)
+        if(-Not($dryRun -eq $True))
         {
             try
             {
@@ -76,7 +76,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
         $auditLogs.Add([PSCustomObject]@{
             Action = "GrantDynamicPermission"
             Message = "Granted membership: {0}" -f $permission.Name
-            IsError = $permissionSuccess
+            IsError = -not $permissionSuccess
         })
     }    
 }
@@ -87,12 +87,16 @@ foreach($permission in $currentPermissions.GetEnumerator()) {
     if(-Not $desiredPermissions.ContainsKey($permission.Name))
     {
         # Revoke Membership
-        if(-Not $dryRun)
+        if(-Not($dryRun -eq $True))
         {
             $permissionSuccess = $True
             try
             {
-                Remove-ADGroupMember -Identity $permission.Name -Members @($accountReference)
+                Remove-ADGroupMember -Identity $permission.Name -Members @($accountReference) -ErrorAction 'Stop'
+            }
+            catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException]{
+                Write-Information "Identity Not Found.  Continuing"
+                Write-Information $_
             }
             catch
             {
