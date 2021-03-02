@@ -1,0 +1,29 @@
+[
+    {
+      "key": "defaultDomain",
+      "type": "input",
+      "defaultValue": "MyDomain.local",
+      "templateOptions": {
+        "label": "Default Domain",
+        "required": true
+      }
+    },
+    {
+      "key": "correlationPersonField",
+      "type": "input",
+      "defaultValue": "$p.ExternalId",
+      "templateOptions": {
+        "label": "Person Correlation Field",
+        "required": true
+      }
+    },
+    {
+      "key": "correlationAccountField",
+      "type": "input",
+      "defaultValue": "employeeID",
+      "templateOptions": {
+        "label": "Account Correlation Field",
+        "required": true
+      }
+    }
+  ]
