@@ -20,10 +20,9 @@ $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain |
 # Get current AD Account
 $ad_user = Get-ADUser -Identity $aRef -Property HomeDirectory -server $pdc
 
-
 if([string]::IsNullOrWhiteSpace($ad_user.homeDirectory))
 {
-	$calcHomeDirectory = "\\{0}\{1}" -f "FILESERVER01",$ad_user.sAMAccountName
+	$calcHomeDirectory = "\\{0}\{1}" -f "SERVERNAME\SHARENAME",$ad_user.sAMAccountName
 }
 else # Directory already defined on Account
 {
@@ -54,6 +53,7 @@ if($dryRun -eq $True) {
     $o = "grant"
 }
 
+
 $currentPermissions = @{}
 foreach($permission in $pRef.CurrentPermissions) {
     $currentPermissions[$permission.Reference.Id] = $permission.DisplayName
@@ -76,7 +76,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
 	
     if(-Not $currentPermissions.ContainsKey($permission.Name))
     {
-		if(-Not($dryRun -eq $True))
+        if(-Not($dryRun -eq $True))
 		{
 			try{
 				$hd_exists = test-path $target.path
@@ -84,7 +84,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
 				{
 					# Create Folder
 					$homeDirectory = New-Item -path $target.path -ItemType Directory -force
-                    Write-Verbose -Verbose ("Creating Home Directory: {0}" -f $target.path)
+					Write-Verbose -Verbose ("Creating Home Directory: {0}" -f $target.path)
 				}
 				
 				# Update AD User
@@ -95,10 +95,10 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
 
 				#Assign rights to user
 				$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($target.ad_user.SID,$target.fsr,$target.inf,$target.pf,$target.act);
-				$acl.AddAccessRule($accessRule);
+                		$acl.AddAccessRule($accessRule);
 
-				$job = Start-Job -ScriptBlock { Set-Acl -path $homeDirectory -AclObject $acl; }
-				
+				$job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1]; } -ArgumentList @($target,$acl)
+
 				$auditLogs.Add([PSCustomObject]@{
 					Action = "GrantDynamicPermission"
 					Message = "Home Directory $($target.path) created for person $($p.DisplayName)"
@@ -114,7 +114,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
 				})
 				Write-Error $_
 			}
-        }
+       }
     }
 }
 
@@ -134,7 +134,6 @@ foreach($permission in $currentPermissions.GetEnumerator()) {
         $newCurrentPermissions[$permission.Name] = $permission.Value
     }
 }
-
 # Update current permissions
 if ($o -eq "update") {
     foreach($permission in $newCurrentPermissions.GetEnumerator()) {    
