@@ -17,6 +17,10 @@ $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain |
 
 #region Change mapping here
 
+# Get current AD Account
+$ad_user = Get-ADUser -Identity $aRef -Property HomeDirectory -server $pdc
+
+
 if([string]::IsNullOrWhiteSpace($ad_user.homeDirectory))
 {
 	$calcHomeDirectory = "\\{0}\{1}" -f "FILESERVER01",$ad_user.sAMAccountName
@@ -49,9 +53,6 @@ if($dryRun -eq $True) {
     # Operation is empty for preview (dry run) mode, that's why we set it here.
     $o = "grant"
 }
-
-# Get current AD Account
-$ad_user = Get-ADUser -Identity $aRef -Property HomeDirectory -server $pdc
 
 $currentPermissions = @{}
 foreach($permission in $pRef.CurrentPermissions) {
