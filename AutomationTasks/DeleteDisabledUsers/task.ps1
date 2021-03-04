@@ -1,3 +1,4 @@
+#region Configuration
 $config = @{
         TargetOU= "OU=Disabled Users,DC=domain,DC=com";
         DeleteAfterDays = 30;
@@ -7,6 +8,12 @@ $config = @{
         MaxDeletes = 50;
 }
 
+#Get PDC
+$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+
+#endregion Configuration
+
+#region Supporting Functions
 function Write-HidStatus{
     [CmdletBinding()]
     param(
@@ -40,77 +47,77 @@ function Write-HidSummary{
         Hid-Write-Summary -Message $Message -Event $Event
     }
 }
+#endregion Supporting Functions
 
-#Get PDC
-$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+#region Execute
+    #Get Disabled Users from Target OU
+    $disabledUsers = Get-ADUser -LDAPFilter "(UserAccountControl:1.2.840.113556.1.4.803:=2)" -SearchBase $config.TargetOU -Properties Description -Server $pdc
 
-#Get Disabled Users from Target OU
-$disabledUsers = Get-ADUser -LDAPFilter "(UserAccountControl:1.2.840.113556.1.4.803:=2)" -SearchBase $config.TargetOU -Properties Description -Server $pdc
-
-$i=0;
-#Loop over Disabled Users
-foreach($user in $disabledUsers)
-{
-    #Check if User contains Prefix
-    if($user.Description -like "$($config.DescriptionPrefix)*")
+    $i=0;
+    #Loop over Disabled Users
+    foreach($user in $disabledUsers)
     {
-        $deleteDate = [datetime]::parseexact($user.Description.replace($config.DescriptionPrefix,''), 'yyyy-MM-dd', $null)
-
-        if((Get-Date) -gt $deleteDate)
+        #Check if User contains Prefix
+        if($user.Description -like "$($config.DescriptionPrefix)*")
         {
-            $message = "Deleting User [$($user.sAMAccountName)] - [$($deleteDate)]"
-            if($config.Enabled)
+            $deleteDate = [datetime]::parseexact($user.Description.replace($config.DescriptionPrefix,''), 'yyyy-MM-dd', $null)
+
+            if((Get-Date) -gt $deleteDate)
             {
-                #Stop Procssing if Max Deletes thresholds exceeded
-				if($i -ge $config.MaxDeletes) { Write-Warning -Verbose "Max Delete threshold met [$($config.MaxDeletes)]"; break; }
-				
-				Write-HidStatus -Event Warning -Message $message;
-                try
+                $message = "Deleting User [$($user.sAMAccountName)] - [$($deleteDate)]"
+                if($config.Enabled)
                 {
-                    Remove-ADUser -Identity $user.SamAccountName -Confirm:$false;
-                    Write-HidSummary -Event Success -Message "Deleted User [$($user.sAMAccountName)]"
+                    #Stop Procssing if Max Deletes thresholds exceeded
+                    if($i -ge $config.MaxDeletes) { Write-Warning -Verbose "Max Delete threshold met [$($config.MaxDeletes)]"; break; }
+                    
+                    Write-HidStatus -Event Warning -Message $message;
+                    try
+                    {
+                        Remove-ADUser -Identity $user.SamAccountName -Confirm:$false;
+                        Write-HidSummary -Event Success -Message "Deleted User [$($user.sAMAccountName)]"
+                    }
+                    catch
+                    {
+                        Write-HidSummary -Event Error -Message "Failed to Delete $user.SamAccountName, stopping processing" ;
+                        break;
+                    }
+                    $i++;
                 }
-                catch
+                else
                 {
-                    Write-HidSummary -Event Error -Message "Failed to Delete $user.SamAccountName, stopping processing" ;
-                    break;
+                    Write-HidStatus -Event Warning  "Read-Only, $($message)"
                 }
-                $i++;
             }
             else
             {
-                Write-HidStatus -Event Warning  "Read-Only, $($message)"
+                if($config.LogSkips) { Write-HidStatus -Event Information "Skipped, future date - $($user.sAMAccountName) [$($deleteDate)]"; }
             }
         }
+        #Add Delete Prefix
         else
         {
-            if($config.LogSkips) { Write-HidStatus -Event Information "Skipped, future date - $($user.sAMAccountName) [$($deleteDate)]"; }
+            #Set Date based on DeleteAfterDays config
+            $date = (Get-Date).AddDays($config.DeleteAfterDays).ToString('yyyy-MM-dd');
+            
+            $message = "Setting User Delete Date [$($user.sAMAccountName)] - [$($date)]";
+            if($config.Enabled)
+            {
+                Write-HidStatus -Event Warning -Message $message;
+                try
+                {
+                    Set-ADUser -Identity $user.SamAccountName -Replace @{ Description= "$($config.DescriptionPrefix)$($date)"} -Server $pdc
+                    Write-HidSummary -Event Success -Message "Set User Delete Date [$($user.sAMAccountName)]"
+                }
+                catch
+                {
+                    Write-HidSummary -Event Error -Message "Failed to update delete date for $user.SamAccountName, stopping processing";
+                    break;
+                }
+            }
+            else
+            {
+            Write-HidStatus -Event Information "Read-Only, $($message)"
+            }
         }
     }
-    #Add Delete Prefix
-    else
-    {
-        #Set Date based on DeleteAfterDays config
-        $date = (Get-Date).AddDays($config.DeleteAfterDays).ToString('yyyy-MM-dd');
-        
-        $message = "Setting User Delete Date [$($user.sAMAccountName)] - [$($date)]";
-        if($config.Enabled)
-        {
-            Write-HidStatus -Event Warning -Message $message;
-            try
-            {
-                Set-ADUser -Identity $user.SamAccountName -Replace @{ Description= "$($config.DescriptionPrefix)$($date)"} -Server $pdc
-                Write-HidSummary -Event Success -Message "Set User Delete Date [$($user.sAMAccountName)]"
-            }
-            catch
-            {
-                Write-HidSummary -Event Error -Message "Failed to update delete date for $user.SamAccountName, stopping processing";
-                break;
-            }
-        }
-        else
-        {
-           Write-HidStatus -Event Information "Read-Only, $($message)"
-        }
-    }
-}
+#endregion Execute

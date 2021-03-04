@@ -10,7 +10,6 @@ $auditLogs = New-Object Collections.Generic.List[PSCustomObject];
 
 #Get Primary Domain Controller
 $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
-
 #endregion Initialize default properties
 
 #region Change mapping here
@@ -50,7 +49,7 @@ catch
 }
 #endregion Execute
 
-#regionbuild up result
+#region build up result
 $result = [PSCustomObject]@{
     Success= $success;
     AccountReference= $account.SID.Value

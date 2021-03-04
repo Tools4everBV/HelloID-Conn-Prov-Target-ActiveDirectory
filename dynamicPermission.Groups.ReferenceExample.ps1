@@ -1,33 +1,21 @@
-# 2021-02-25 - Student Groups - Dynamic Permissions Example
+#region Initialize default properties
+$config = ConvertFrom-Json $configuration
 $p = $person | ConvertFrom-Json
+$pp = $previousPerson | ConvertFrom-Json
+$pd = $personDifferences | ConvertFrom-Json
 $m = $manager | ConvertFrom-Json
 $aRef = $accountReference | ConvertFrom-Json
 $mRef = $managerAccountReference | ConvertFrom-Json
-$pRef = $permissionReference | ConvertFrom-Json
-$c = $configuration | ConvertFrom-Json
-
-$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
-
-Write-Verbose -Verbose ("Existing Permissions: {0}" -f $permissionReference)
-
-# Operation is a script parameter which contains the action HelloID wants to perform for this permission
-# It has one of the following values: "grant", "revoke", "update"
-$o = $operation | ConvertFrom-Json
-
-if($dryRun -eq $True) {
-    # Operation is empty for preview (dry run) mode, that's why we set it here.
-    $o = "grant"
-}
+$pRef = $permissionReference | ConvertFrom-json
 
 $success = $True
-$auditLogs = New-Object Collections.Generic.List[PSCustomObject]
-$dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject]
+$auditLogs = New-Object Collections.Generic.List[PSCustomObject];
+$dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject];
 
-$currentPermissions = @{}
-foreach($permission in $pRef.CurrentPermissions) {
-    $currentPermissions[$permission.Reference.Id] = $permission.DisplayName
-}
+$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+#endregion Initialize default properties
 
+#region Change mapping here
 $desiredPermissions = @{};
 foreach($contract in $p.Contracts) {
     if($contract.Context.InConditions)
@@ -49,6 +37,23 @@ foreach($contract in $p.Contracts) {
     }
 }
 Write-Verbose -Verbose ("Defined Permissions: {0}" -f ($desiredPermissions.keys | ConvertTo-Json))
+#endregion Change mapping here
+
+#region Execute
+# Operation is a script parameter which contains the action HelloID wants to perform for this permission
+# It has one of the following values: "grant", "revoke", "update"
+$o = $operation | ConvertFrom-Json
+
+if($dryRun -eq $True) {
+    # Operation is empty for preview (dry run) mode, that's why we set it here.
+    $o = "grant"
+}
+
+Write-Verbose -Verbose ("Existing Permissions: {0}" -f $permissionReference)
+$currentPermissions = @{}
+foreach($permission in $pRef.CurrentPermissions) {
+    $currentPermissions[$permission.Reference.Id] = $permission.DisplayName
+}
 
 # Compare desired with current permissions and grant permissions
 foreach($permission in $desiredPermissions.GetEnumerator()) {
@@ -135,11 +140,13 @@ if ($o -eq "update") {
     }
 }
 #>
+#endregion Execute
 
-# Send results
+#region Build up result
 $result = [PSCustomObject]@{
-    Success = $success
-    DynamicPermissions = $dynamicPermissions
-    AuditLogs = $auditLogs
-}
-Write-Output ($result | ConvertTo-Json -Depth 10)
+    Success = $success;
+    DynamicPermissions = $dynamicPermissions;
+    AuditLogs = $auditLogs;
+};
+Write-Output $result | ConvertTo-Json -Depth 10;
+#endregion Build up result

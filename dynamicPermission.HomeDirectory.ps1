@@ -8,7 +8,7 @@ $aRef = $accountReference | ConvertFrom-Json
 $mRef = $managerAccountReference | ConvertFrom-Json
 $pRef = $permissionReference | ConvertFrom-json
 
-$success = $False
+$success = $True
 $auditLogs = New-Object Collections.Generic.List[PSCustomObject];
 $dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject];
 
@@ -145,10 +145,8 @@ if ($o -eq "update") {
     }
 }
 #>
-$success = $True
+
 #endregion Execute
-
-
 
 #region Build up result
 $result = [PSCustomObject]@{
