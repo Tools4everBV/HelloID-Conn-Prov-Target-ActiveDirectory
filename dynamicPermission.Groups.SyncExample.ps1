@@ -1,15 +1,21 @@
-$p = $person | ConvertFrom-Json;
-$m = $manager | ConvertFrom-Json;
-$aRef = $accountReference | ConvertFrom-Json;
-$mRef = $managerAccountReference | ConvertFrom-Json;
-$pRef = $permissionReference | ConvertFrom-json;
-$c = $configuration | ConvertFrom-Json;
+#region Initialize default properties
+$config = ConvertFrom-Json $configuration
+$p = $person | ConvertFrom-Json
+$pp = $previousPerson | ConvertFrom-Json
+$pd = $personDifferences | ConvertFrom-Json
+$m = $manager | ConvertFrom-Json
+$aRef = $accountReference | ConvertFrom-Json
+$mRef = $managerAccountReference | ConvertFrom-Json
+$pRef = $permissionReference | ConvertFrom-json
 
-#Get Primary Domain Controller
+$success = $True
+$auditLogs = New-Object Collections.Generic.List[PSCustomObject];
+$dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject];
+
 $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+#endregion Initialize default properties
 
-$success = $True;
-
+#region Supporting Functions
 function Get-ADSanitizeGroupName
 {
     param(
@@ -27,25 +33,9 @@ function Get-ADSanitizeGroupName
     $newName = $newName -replace '\.\.','.';
     return $newName;
 }
+#endregion Supporting Functions
 
-# Operation is a script parameter which contains the action HelloID wants to perform for this permission
-# It has one of the following values: "grant", "revoke", "update"
-$o = $operation | ConvertFrom-Json;
-
-if($dryRun -eq $True) {
-    # Operation is empty for preview (dry run) mode, that's why we set it here.
-    $o = "grant";
-}
-
-$auditLogs = New-Object Collections.Generic.List[PSCustomObject];
-$dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject];
-$currentPermissions = @{};
-
-#Current Automated Groups
-$agGroups = Get-ADGroup -LDAPFilter "(adminDescription=Automated Group)" -Server $pdc
-
-#Get User Current Automation Groups
-Get-ADPrincipalGroupMembership -Identity $aRef -Server $pdc | Where-Object { $agGroups.SID -contains $_.SID } | ForEach-Object { $currentPermissions[$_.name] = $_.name; }
+#region Change mapping here
 $desiredPermissions = @{};
 
 foreach($contract in $p.Contracts) {
@@ -78,6 +68,24 @@ foreach($contract in $p.Contracts) {
         $desiredPermissions["AG.$($teamId)"] = "AG.$($teamId)";
     }
 }
+#endregion Change mapping here
+
+#region Execute
+# Operation is a script parameter which contains the action HelloID wants to perform for this permission
+# It has one of the following values: "grant", "revoke", "update"
+$o = $operation | ConvertFrom-Json;
+
+if($dryRun -eq $True) {
+    # Operation is empty for preview (dry run) mode, that's why we set it here.
+    $o = "grant";
+}
+
+#Current Automated Groups
+$agGroups = Get-ADGroup -LDAPFilter "(adminDescription=Automated Group)" -Server $pdc
+
+#Get User Current Automation Groups
+Get-ADPrincipalGroupMembership -Identity $aRef -Server $pdc | Where-Object { $agGroups.SID -contains $_.SID } | ForEach-Object { $currentPermissions[$_.name] = $_.name; }
+
 # Compare desired with current permissions and grant permissions
 foreach($permission in $desiredPermissions.GetEnumerator()) {
     $dynamicPermissions.Add([PSCustomObject]@{
@@ -139,6 +147,7 @@ foreach($permission in $currentPermissions.GetEnumerator()) {
         $newCurrentPermissions[$permission.Name] = $permission.Value;
     }
 }
+
 # Update current permissions
 #if ($o -eq "update") {
 #    foreach($permission in $newCurrentPermissions.GetEnumerator()) {    
@@ -150,19 +159,13 @@ foreach($permission in $currentPermissions.GetEnumerator()) {
 #        });
 #    }
 #}
+#endregion Execute
 
-if(($dynamicPermissions.count) -lt 1) {
-    Write-Information "No dynamic groups generated"
-    $dynamicPermissions.Add([PSCustomObject]@{
-            DisplayName = "NO GROUPS";
-            Reference = [PSCustomObject]@{ Id = "NO GROUPS" };
-    });
-}
-
-# Send results
+#region Build up result
 $result = [PSCustomObject]@{
     Success = $success;
     DynamicPermissions = $dynamicPermissions;
     AuditLogs = $auditLogs;
 };
 Write-Output $result | ConvertTo-Json -Depth 10;
+#endregion Build up result

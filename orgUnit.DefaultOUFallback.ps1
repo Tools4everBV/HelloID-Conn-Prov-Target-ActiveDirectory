@@ -1,4 +1,4 @@
-#Initialize default properties
+#region Initialize default properties
 $p = $person | ConvertFrom-Json
 $m = $manager | ConvertFrom-Json
 $a = $accountReference | ConvertFrom-Json
@@ -7,25 +7,27 @@ $success = $false
 
 #Get Primary Domain Controller
 $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+#endregion Initialize default properties
 
-
-$calc_org_unit = ((Get-ADDomain).DNSRoot + "/Student Accounts/Active/{0}/{1}" `
+#region Change mapping here
+$CalcOrgUnit = ((Get-ADDomain).DNSRoot + "/Student Accounts/Active/{0}/{1}" `
         -f $p.PrimaryContract.Department.ExternalID `
             ,$p.custom.GradYear)
 			
-$default_org_unit = (Get-ADDomain).DNSRoot + "/Student Accounts"
+$defaultOrgUnit = (Get-ADDomain).DNSRoot + "/Student Accounts"
+#endregion Change mapping here
 
-
-$organizationalUnit = Get-ADOrganizationalUnit -Filter * -Property canonicalName -Server $pdc | ?{$_.canonicalName -eq $calc_org_unit}
+#region Execute
+$organizationalUnit = Get-ADOrganizationalUnit -Filter * -Property canonicalName -Server $pdc | ?{$_.canonicalName -eq $CalcOrgUnit}
 if($organizationalUnit -ne $null)
 {
     $success = $True
-    Write-Verbose -Verbose "Found OU: $calc_org_unit"
+    Write-Verbose -Verbose "Found OU: $CalcOrgUnit"
 }
 else # Check if Default OU Exists
 {
-    Write-Verbose -Verbose "Did not find OU: $calc_org_unit"
-    $organizationalUnit = Get-ADOrganizationalUnit -Filter * -Property canonicalName -Server $pdc | ?{$_.canonicalName -eq ($default_org_unit)}
+    Write-Verbose -Verbose "Did not find OU: $CalcOrgUnit"
+    $organizationalUnit = Get-ADOrganizationalUnit -Filter * -Property canonicalName -Server $pdc | ?{$_.canonicalName -eq ($defaultOrgUnit)}
     if($organizationalUnit -ne $null)
     {
         Write-Verbose -Verbose ("Using Default OU: {0}" -f $organizationalUnit.canonicalName)
@@ -33,16 +35,19 @@ else # Check if Default OU Exists
     }
     else
     {
-        Write-Verbose -Verbose ("Default OU Not Found: {0}" -f $default_org_unit)
+        Write-Verbose -Verbose ("Default OU Not Found: {0}" -f $defaultOrgUnit)
     }
 }
 if($dryRun -eq $True) {
     Write-Verbose -Verbose "Dry run for determining OU"
 }
-#build up result
+#endregion Execute
+
+#region build up result
 $result = [PSCustomObject]@{
     Success = $success
     OrganizationalUnit = $organizationalUnit
 };
-#send result back
+
 Write-Output $result | ConvertTo-Json -Depth 2
+#endregion build up result
