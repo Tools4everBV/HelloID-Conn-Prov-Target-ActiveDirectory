@@ -8,52 +8,47 @@ $aRef = $accountReference | ConvertFrom-Json
 $mRef = $managerAccountReference | ConvertFrom-Json
 $pRef = $permissionReference | ConvertFrom-json
 
+# Operation is a script parameter which contains the action HelloID wants to perform for this permission
+#   It has one of the following values: "grant", "revoke", "update"
+$o = $operation | ConvertFrom-Json
+if($dryRun -eq $True) {
+    # Operation is empty for preview (dry run) mode, that's why we set it here.
+    $o = "grant"
+}
+
 $success = $True
-$auditLogs = New-Object Collections.Generic.List[PSCustomObject];
-$dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject];
+$auditLogs = New-Object Collections.Generic.List[PSCustomObject]
+$dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject]
 
 $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
 #endregion Initialize default properties
 
 #region Change mapping here
-
-# Get current AD Account
 $ad_user = Get-ADUser -Identity $aRef -Property HomeDirectory -server $pdc
 
-if([string]::IsNullOrWhiteSpace($ad_user.homeDirectory))
+if([string]::IsNullOrWhiteSpace($ad_user.HomeDirectory))
 {
-	$calcHomeDirectory = "\\{0}\{1}" -f "SERVERNAME\SHARENAME",$ad_user.sAMAccountName
+    $calcHomeDirectory = "\\{0}\{1}" -f "SERVERNAME\SHARENAME",$ad_user.sAMAccountName
 }
 else # Directory already defined on Account
 {
-	$calcHomeDirectory = $ad_user.HomeDirectory
+    $calcHomeDirectory = $ad_user.HomeDirectory
 }
 
 Write-Verbose -Verbose ("Calculated HomeDirectory: {0}" -f $calcHomeDirectory)
 
 $target = @{
     ad_user = $ad_user
-	path = $calcHomeDirectory
+    path = $calcHomeDirectory
     drive = "H:"
     fsr = [System.Security.AccessControl.FileSystemRights]"Modify" #File System Rights
     act = [System.Security.AccessControl.AccessControlType]::Allow #Access Control Type
     inf = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" #Inheritance Flags
     pf = [System.Security.AccessControl.PropagationFlags]"InheritOnly" #Propagation Flags
 }
-
 #endregion Change mapping here
 
 #region Execute
-# Operation is a script parameter which contains the action HelloID wants to perform for this permission
-# It has one of the following values: "grant", "revoke", "update"
-$o = $operation | ConvertFrom-Json
-
-if($dryRun -eq $True) {
-    # Operation is empty for preview (dry run) mode, that's why we set it here.
-    $o = "grant"
-}
-
-
 $currentPermissions = @{}
 foreach($permission in $pRef.CurrentPermissions) {
     $currentPermissions[$permission.Reference.Id] = $permission.DisplayName
@@ -63,7 +58,7 @@ $desiredPermissions = @{}
 foreach($contract in $p.Contracts) {
     if($contract.Context.InConditions)
     {
-        $desiredPermissions["HomeDirectory"] = $calcHomeDirectory # Set this to the calculated HomeDir?
+        $desiredPermissions["HomeDirectory"] = $calcHomeDirectory
     }
 }
 
@@ -73,48 +68,48 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
             DisplayName = $permission.Value
             Reference = [PSCustomObject]@{ Id = $permission.Name }
     })
-	
+    
     if(-Not $currentPermissions.ContainsKey($permission.Name))
     {
         if(-Not($dryRun -eq $True))
-		{
-			try{
-				$hd_exists = test-path $target.path
-				if(-Not $hd_exists)
-				{
-					# Create Folder
-					$homeDirectory = New-Item -path $target.path -ItemType Directory -force
-					Write-Verbose -Verbose ("Creating Home Directory: {0}" -f $target.path)
-				}
-				
-				# Update AD User
-				Set-ADUser $target.ad_user -HomeDrive $target.letter -HomeDirectory $target.path -Server $pdc
-				
-				#Return ACL to modify
-				$acl = Get-Acl $target.path
+        {
+            try{
+                $hd_exists = test-path $target.path
+                if(-Not $hd_exists)
+                {
+                    # Create Folder
+                    $homeDirectory = New-Item -path $target.path -ItemType Directory -force
+                    Write-Verbose -Verbose ("Creating Home Directory: {0}" -f $target.path)
+                }
+                
+                # Update AD User
+                Set-ADUser $target.ad_user -HomeDrive $target.letter -HomeDirectory $target.path -Server $pdc
+                
+                #Return ACL to modify
+                $acl = Get-Acl $target.path
 
-				#Assign rights to user
-				$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($target.ad_user.SID,$target.fsr,$target.inf,$target.pf,$target.act);
-                		$acl.AddAccessRule($accessRule);
+                #Assign rights to user
+                $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($target.ad_user.SID,$target.fsr,$target.inf,$target.pf,$target.act)
+                $acl.AddAccessRule($accessRule)
 
-				$job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1]; } -ArgumentList @($target,$acl)
+                $job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($target,$acl)
 
-				$auditLogs.Add([PSCustomObject]@{
-					Action = "GrantDynamicPermission"
-					Message = "Home Directory $($target.path) created for person $($p.DisplayName)"
-					IsError = $False
-				})
-				$success = $True
-			}
-			catch{
-				$auditLogs.Add([PSCustomObject]@{
-					Action = "GrantDynamicPermission"
-					Message = "Home Directory creation failed for person - $($homeDrive.path) - $($_)"
-					IsError = $True
-				})
-				Write-Error $_
-			}
-       }
+                $auditLogs.Add([PSCustomObject]@{
+                    Action = "GrantDynamicPermission"
+                    Message = "Home Directory $($target.path) created for person $($p.DisplayName)"
+                    IsError = $False
+                })
+            }
+            catch{
+                $success = $False
+                $auditLogs.Add([PSCustomObject]@{
+                    Action = "GrantDynamicPermission"
+                    Message = "Home Directory creation failed for person - $($homeDrive.path) - $($_)"
+                    IsError = $True
+                })
+                Write-Error $_
+            }
+        }
     }
 }
 
@@ -134,6 +129,7 @@ foreach($permission in $currentPermissions.GetEnumerator()) {
         $newCurrentPermissions[$permission.Name] = $permission.Value
     }
 }
+
 # Update current permissions
 if ($o -eq "update") {
     foreach($permission in $newCurrentPermissions.GetEnumerator()) {    
@@ -145,14 +141,13 @@ if ($o -eq "update") {
     }
 }
 #>
-
 #endregion Execute
 
 #region Build up result
 $result = [PSCustomObject]@{
-    Success = $success;
-    DynamicPermissions = $dynamicPermissions;
-    AuditLogs = $auditLogs;
-};
-Write-Output $result | ConvertTo-Json -Depth 10;
+    Success = $success
+    DynamicPermissions = $dynamicPermissions
+    AuditLogs = $auditLogs
+}
+Write-Output ($result | ConvertTo-Json -Depth 10)
 #endregion Build up result
