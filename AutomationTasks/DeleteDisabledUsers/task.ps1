@@ -1,11 +1,12 @@
 #region Configuration
 $config = @{
-        TargetOU= "OU=Disabled Users,DC=domain,DC=com";
-        DeleteAfterDays = 30;
-        DescriptionPrefix = "AUTOMATED - Delete After: ";
-        Enabled = $false;
-        LogSkips = $true;
-        MaxDeletes = 50;
+    TargetOU= "OU=Disabled Users,DC=domain,DC=com";
+    DeleteAfterDays = 30;
+    DescriptionPrefix = "AUTOMATED - Delete After: ";
+    Enabled = $false;
+    UpdateInvalidDescriptions = $false;
+    LogSkips = $true;
+    MaxDeletes = 50;
 }
 
 #Get PDC
@@ -60,37 +61,37 @@ function Write-HidSummary{
         #Check if User contains Prefix
         if($user.Description -like "$($config.DescriptionPrefix)*")
         {
-            $deleteDate = [datetime]::parseexact($user.Description.replace($config.DescriptionPrefix,''), 'yyyy-MM-dd', $null)
+            $deleteDate = [datetime]::parse($user.Description.replace($config.DescriptionPrefix,'')) # Original parseExact 2nd parameter: , 'yyyy-MM-dd', $null)
 
             if((Get-Date) -gt $deleteDate)
             {
-                $message = "Deleting User [$($user.sAMAccountName)] - [$($deleteDate)]"
+                $message = "Deleting User [{0}] - [{1}]" -f $user.sAMAccountName,$deleteDate
                 if($config.Enabled)
                 {
-                    #Stop Procssing if Max Deletes thresholds exceeded
-                    if($i -ge $config.MaxDeletes) { Write-Warning -Verbose "Max Delete threshold met [$($config.MaxDeletes)]"; break; }
+                    #Stop Processing if Max Deletes thresholds exceeded
+                    if($i -ge $config.MaxDeletes) { Write-HidStatus -Event Warning -Message ("Stopping: Max Delete threshold met [{0}].  Total Accounts to Evaluate: {1}" -f $config.MaxDeletes,$disabledUsers.count); break; }
                     
                     Write-HidStatus -Event Warning -Message $message;
                     try
                     {
                         Remove-ADUser -Identity $user.SamAccountName -Confirm:$false;
-                        Write-HidSummary -Event Success -Message "Deleted User [$($user.sAMAccountName)]"
+                        Write-HidSummary -Event Success -Message ("Deleted User []" -f $user.sAMAccountName)
                     }
                     catch
                     {
-                        Write-HidSummary -Event Error -Message "Failed to Delete $user.SamAccountName, stopping processing" ;
+                        Write-HidSummary -Event Error -Message ("Failed to Delete [{0}], stopping processing" -f $user.SamAccountName);
                         break;
                     }
                     $i++;
                 }
                 else
                 {
-                    Write-HidStatus -Event Warning  "Read-Only, $($message)"
+                    Write-HidStatus -Event Warning -Message ("Read-Only: {0}" -f $user.SamAccountName)
                 }
             }
             else
             {
-                if($config.LogSkips) { Write-HidStatus -Event Information "Skipped, future date - $($user.sAMAccountName) [$($deleteDate)]"; }
+                if($config.LogSkips) { Write-HidStatus -Event Information ("Skipped, future date - {0} - [{1:u}]" -f $user.sAMAccountName,$deleteDate); }
             }
         }
         #Add Delete Prefix
@@ -99,24 +100,24 @@ function Write-HidSummary{
             #Set Date based on DeleteAfterDays config
             $date = (Get-Date).AddDays($config.DeleteAfterDays).ToString('yyyy-MM-dd');
             
-            $message = "Setting User Delete Date [$($user.sAMAccountName)] - [$($date)]";
-            if($config.Enabled)
+            $message = "Invalid Description on [{0}]: [{1}] - Setting New User Description [{2}{3}]" -f $user.sAMAccountName,$user.description,$config.DescriptionPrefix,$date;
+            if($config.Enabled -AND $config.UpdateInvalidDescriptions)
             {
                 Write-HidStatus -Event Warning -Message $message;
                 try
                 {
-                    Set-ADUser -Identity $user.SamAccountName -Replace @{ Description= "$($config.DescriptionPrefix)$($date)"} -Server $pdc
-                    Write-HidSummary -Event Success -Message "Set User Delete Date [$($user.sAMAccountName)]"
+                    Set-ADUser -Identity $user.SamAccountName -Replace @{ Description= ("{0}{1}" -f $config.DescriptionPrefix,$date)} -Server $pdc
+                    Write-HidSummary -Event Success -Message "Updated User Description: [$($user.sAMAccountName)]"
                 }
                 catch
                 {
-                    Write-HidSummary -Event Error -Message "Failed to update delete date for $user.SamAccountName, stopping processing";
+                    Write-HidSummary -Event Error -Message ("Failed to update description for {0}, stopping processing" -f $user.SamAccountName);
                     break;
                 }
             }
             else
             {
-            Write-HidStatus -Event Information "Read-Only, $($message)"
+                Write-HidStatus -Event Information -Message ("Read-Only: {0}" -f $message )
             }
         }
     }
