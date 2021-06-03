@@ -75,7 +75,7 @@ function Write-HidSummary{
                     try
                     {
                         Remove-ADUser -Identity $user.SamAccountName -Confirm:$false;
-                        Write-HidSummary -Event Success -Message ("Deleted User []" -f $user.sAMAccountName)
+                        Write-HidSummary -Event Success -Message ("Deleted User [{0}]" -f $user.sAMAccountName)
                     }
                     catch
                     {
