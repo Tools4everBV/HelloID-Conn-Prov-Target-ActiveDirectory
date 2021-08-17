@@ -1,3 +1,5 @@
+# 2021-02-05 - Student Groups - Dynamic Permissions Example
+# 2021-08-17 - Updated with Entitlement Context variable change.
 #region Initialize default properties
 $config = ConvertFrom-Json $configuration
 $p = $person | ConvertFrom-Json
@@ -6,33 +8,47 @@ $pd = $personDifferences | ConvertFrom-Json
 $m = $manager | ConvertFrom-Json
 $aRef = $accountReference | ConvertFrom-Json
 $mRef = $managerAccountReference | ConvertFrom-Json
-$pRef = $permissionReference | ConvertFrom-json
+
+# Operation is a script parameter which contains the action HelloID wants to perform for this permission
+# It has one of the following values: "grant", "revoke", "update"
+$o = $operation | ConvertFrom-Json
+
+# The entitlementContext contains the sub permissions (Previously the $permissionReference variable)
+$eRef = $entitlementContext | ConvertFrom-Json
+
+$currentPermissions = @{}
+foreach($permission in $eRef.CurrentPermissions) {
+    $currentPermissions[$permission.Reference.Id] = $permission.DisplayName
+}
 
 $success = $True
-$auditLogs = New-Object Collections.Generic.List[PSCustomObject];
-$dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject];
+$auditLogs = New-Object Collections.Generic.List[PSCustomObject]
+$subPermissions = New-Object Collections.Generic.List[PSCustomObject]
 
 $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
 #endregion Initialize default properties
 
 #region Change mapping here
-$desiredPermissions = @{};
-foreach($contract in $p.Contracts) {
-    if($contract.Context.InConditions)
-    {
-        # <GradYear>.Students.<Location>
-        $group_sAMAccountName = "{0}.Students.{1}" -f $p.custom.GradYear,$contract.Department.ExternalID
-        $desiredPermissions[$group_sAMAccountName] = $group_sAMAccountName
-
-        # Students.<Location>
-        $group_sAMAccountName = "Students.{0}" -f $contract.Department.ExternalID
-        $desiredPermissions[$group_sAMAccountName] = $group_sAMAccountName
-
-        # Students.<Alt Location>
-        if(-Not [string]::IsNullOrWhiteSpace($p.custom.AltLocation))
+$desiredPermissions = @{}
+if (-Not($o -eq "revoke"))
+{
+    foreach($contract in $p.Contracts) {  # If Testing:  -OR ($dryRun -eq $True)
+        if($contract.Context.InConditions)
         {
-            $group_sAMAccountName = "Students.{0}" -f $p.custom.AltLocation
+            # <GradYear>.Students.<Location>
+            $group_sAMAccountName = "{0}.Students.{1}" -f $p.custom.GradYear,$contract.Department.ExternalID
             $desiredPermissions[$group_sAMAccountName] = $group_sAMAccountName
+
+            # Students.<Location>
+            $group_sAMAccountName = "Students.{0}" -f $contract.Department.ExternalID
+            $desiredPermissions[$group_sAMAccountName] = $group_sAMAccountName
+
+            # Students.<Alt Location>
+            if(-Not [string]::IsNullOrWhiteSpace($p.custom.AltLocation))
+            {
+                $group_sAMAccountName = "Students.{0}" -f $p.custom.AltLocation
+                $desiredPermissions[$group_sAMAccountName] = $group_sAMAccountName
+            }
         }
     }
 }
@@ -40,24 +56,11 @@ Write-Verbose -Verbose ("Defined Permissions: {0}" -f ($desiredPermissions.keys 
 #endregion Change mapping here
 
 #region Execute
-# Operation is a script parameter which contains the action HelloID wants to perform for this permission
-# It has one of the following values: "grant", "revoke", "update"
-$o = $operation | ConvertFrom-Json
-
-if($dryRun -eq $True) {
-    # Operation is empty for preview (dry run) mode, that's why we set it here.
-    $o = "grant"
-}
-
-Write-Verbose -Verbose ("Existing Permissions: {0}" -f $permissionReference)
-$currentPermissions = @{}
-foreach($permission in $pRef.CurrentPermissions) {
-    $currentPermissions[$permission.Reference.Id] = $permission.DisplayName
-}
+Write-Verbose -Verbose ("Existing Permissions: {0}" -f $entitlementContext)
 
 # Compare desired with current permissions and grant permissions
 foreach($permission in $desiredPermissions.GetEnumerator()) {
-    $dynamicPermissions.Add([PSCustomObject]@{
+    $subPermissions.Add([PSCustomObject]@{
             DisplayName = $permission.Value
             Reference = [PSCustomObject]@{ Id = $permission.Name }
     })
@@ -94,7 +97,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
 # Compare current with desired permissions and revoke permissions
 $newCurrentPermissions = @{}
 foreach($permission in $currentPermissions.GetEnumerator()) {    
-    if(-Not $desiredPermissions.ContainsKey($permission.Name))
+    if(-Not $desiredPermissions.ContainsKey($permission.Name) -AND $permission.Name -ne "No Groups Defined")
     {
         # Revoke Membership
         if(-Not($dryRun -eq $True))
@@ -140,13 +143,23 @@ if ($o -eq "update") {
     }
 }
 #>
+
+# Handle case of empty defined dynamic permissions.  Without this the entitlement will error.
+if ($o -match "update|grant" -AND $subPermissions.count -eq 0)
+{
+    $subPermissions.Add([PSCustomObject]@{
+            DisplayName = "No Groups Defined"
+            Reference = [PSCustomObject]@{ Id = "No Groups Defined" }
+    })
+}
+
 #endregion Execute
 
 #region Build up result
 $result = [PSCustomObject]@{
-    Success = $success;
-    DynamicPermissions = $dynamicPermissions;
-    AuditLogs = $auditLogs;
-};
-Write-Output $result | ConvertTo-Json -Depth 10;
+    Success = $success
+    SubPermissions = $subPermissions
+    AuditLogs = $auditLogs
+}
+Write-Output ($result | ConvertTo-Json -Depth 10)
 #endregion Build up result
