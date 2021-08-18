@@ -74,7 +74,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
             try
             {
                 #Note:  No errors thrown if user is already a member.
-                Add-ADGroupMember -Identity $($permission.Name) -Members @($aRef) -server $pdc
+                Add-ADGroupMember -Identity $($permission.Name) -Members @($aRef) -server $pdc -ErrorAction 'Stop'
                 Write-Verbose -Verbose ("Successfully Granted Permission to: {0}" -f $permission.Name)
             }
             catch
@@ -105,7 +105,7 @@ foreach($permission in $currentPermissions.GetEnumerator()) {
             $permissionSuccess = $True
             try
             {
-                Remove-ADGroupMember -Identity $permission.Name -Members @($aRef) -Confirm:$false -server $pdc
+                Remove-ADGroupMember -Identity $permission.Name -Members @($aRef) -Confirm:$false -server $pdc -ErrorAction 'Stop'
             }
             # Handle issue of AD Account or Group having been deleted.  Handle gracefully.
             catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException]{
