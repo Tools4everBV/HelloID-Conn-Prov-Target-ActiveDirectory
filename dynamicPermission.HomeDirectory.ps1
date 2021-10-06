@@ -83,7 +83,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
                 }
                 
                 # Update AD User
-                Set-ADUser $target.ad_user -HomeDrive $target.letter -HomeDirectory $target.path -Server $pdc
+                Set-ADUser $target.ad_user -HomeDrive $target.drive -HomeDirectory $target.path -Server $pdc
                 
                 #Return ACL to modify
                 $acl = Get-Acl $target.path
