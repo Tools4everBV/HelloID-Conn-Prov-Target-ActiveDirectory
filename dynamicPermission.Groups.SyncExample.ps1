@@ -109,7 +109,7 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
         $auditLogs.Add([PSCustomObject]@{
             Action = "GrantDynamicPermission";
             Message = "Granted access to department share $($permission.Value)";
-            IsError = $permissionSuccess;
+            IsError = !$permissionSuccess;
         });
     }    
 }
