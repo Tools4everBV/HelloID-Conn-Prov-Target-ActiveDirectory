@@ -32,11 +32,16 @@ $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain |
 #endregion Initialize default properties
 
 #region Change mapping here
-if($dryrun -ne 'true')
+if(-Not($dryRun -eq $True))
 {
     $ad_user = Get-ADUser -Identity $aRef -Property HomeDirectory -server $pdc
 } else {
-    $ad_user = Get-ADUser -LDAPFilter ("(EmployeeNumber={0})" -f $p.Custom.otherID) -Property HomeDirectory -server $pdc
+	$correlationPersonField = ($config.correlationPersonField | Invoke-Expression)
+    $correlationAccountField = $config.correlationAccountField
+	$filter = "($($correlationAccountField)=$($correlationPersonField))"
+    Write-Information "LDAP Filter: $($filter)"
+    
+    $ad_user = Get-ADUser -LDAPFilter $filter -Property HomeDirectory -server $pdc
 }
 
 if([string]::IsNullOrWhiteSpace($ad_user.HomeDirectory))
