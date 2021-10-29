@@ -36,9 +36,9 @@ if(-Not($dryRun -eq $True))
 {
     $ad_user = Get-ADUser -Identity $aRef -Property HomeDirectory -server $pdc
 } else {
-	$correlationPersonField = ($config.correlationPersonField | Invoke-Expression)
+    $correlationPersonField = ($config.correlationPersonField | Invoke-Expression)
     $correlationAccountField = $config.correlationAccountField
-	$filter = "($($correlationAccountField)=$($correlationPersonField))"
+    $filter = "($($correlationAccountField)=$($correlationPersonField))"
     Write-Information "LDAP Filter: $($filter)"
     
     $ad_user = Get-ADUser -LDAPFilter $filter -Property HomeDirectory -server $pdc
@@ -53,12 +53,12 @@ else # Directory already defined on Account
 {
     Write-Information ("Existing HomeDir Found: {0}" -f $ad_user.HomeDirectory)
     $existing_homedir = $True
-	$calcHomeDirectory = $ad_user.HomeDirectory
+    $calcHomeDirectory = $ad_user.HomeDirectory
 }
 
 $target = @{
     ad_user = $ad_user
-	path = $calcHomeDirectory
+    path = $calcHomeDirectory
     drive = "H:"
     fsr = [System.Security.AccessControl.FileSystemRights]"Modify" #File System Rights
     act = [System.Security.AccessControl.AccessControlType]::Allow #Access Control Type
@@ -73,7 +73,7 @@ Write-Information ("Existing Permissions: {0}" -f $entitlementContext)
 $desiredPermissions = @{}
 if($o -match "grant|update" -AND ($existing_homedir -OR ![string]::IsNullOrWhiteSpace($p.custom.HomeDirPath)))
 {
-	$desiredPermissions["HomeDirectory"] = $calcHomeDirectory
+    $desiredPermissions["HomeDirectory"] = $calcHomeDirectory
 }
 Write-Information ("Defined Permissions: {0}" -f ($desiredPermissions.keys | ConvertTo-Json))
 
@@ -83,47 +83,47 @@ foreach($permission in $desiredPermissions.GetEnumerator()) {
             DisplayName = $permission.Value
             Reference = [PSCustomObject]@{ Id = $permission.Name }
     })
-	
+    
     if(-Not $currentPermissions.ContainsKey($permission.Name))
     {
-		if(-Not($dryRun -eq $True))
-		{
-			try{
-				$hd_exists = test-path $target.path
-				if(-Not $hd_exists)
-				{
-					# Create Folder
-					$homeDirectory = New-Item -path $target.path -ItemType Directory -force
+        if(-Not($dryRun -eq $True))
+        {
+            try{
+                $hd_exists = test-path $target.path
+                if(-Not $hd_exists)
+                {
+                    # Create Folder
+                    $homeDirectory = New-Item -path $target.path -ItemType Directory -force
                     Write-Information ("Creating Home Directory: {0}" -f $target.path)
-				}
-				
-				# Update AD User
-				Set-ADUser $target.ad_user -HomeDrive $target.drive -HomeDirectory $target.path -Server $pdc
-				
-				#Return ACL to modify
-				$acl = Get-Acl $target.path
+                }
+                
+                # Update AD User
+                Set-ADUser $target.ad_user -HomeDrive $target.drive -HomeDirectory $target.path -Server $pdc
+                
+                #Return ACL to modify
+                $acl = Get-Acl $target.path
 
-				#Assign rights to user
-				$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($target.ad_user.SID,$target.fsr,$target.inf,$target.pf,$target.act)
-				$acl.AddAccessRule($accessRule)
+                #Assign rights to user
+                $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($target.ad_user.SID,$target.fsr,$target.inf,$target.pf,$target.act)
+                $acl.AddAccessRule($accessRule)
 
-				$job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($target,$acl)
+                $job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($target,$acl)
 
-				$auditLogs.Add([PSCustomObject]@{
-					Action = "GrantPermission"
-					Message = "Home Directory $($target.path) created for person $($p.DisplayName)"
-					IsError = $False
-				})
-			}
-			catch{
-				$success = $False
-				$auditLogs.Add([PSCustomObject]@{
-					Action = "GrantPermission"
-					Message = "Home Directory creation failed for person - $($homeDrive.path) - $($_)"
-					IsError = $True
-				})
-				Write-Error $_
-			}
+                $auditLogs.Add([PSCustomObject]@{
+                    Action = "GrantPermission"
+                    Message = "Home Directory $($target.path) created for person $($p.DisplayName)"
+                    IsError = $False
+                })
+            }
+            catch{
+                $success = $False
+                $auditLogs.Add([PSCustomObject]@{
+                    Action = "GrantPermission"
+                    Message = "Home Directory creation failed for person - $($homeDrive.path) - $($_)"
+                    IsError = $True
+                })
+                Write-Error $_
+            }
         }
     }
 }
