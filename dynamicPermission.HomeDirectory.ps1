@@ -34,7 +34,12 @@ $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain |
 #region Change mapping here
 if(-Not($dryRun -eq $True))
 {
-    $ad_user = Get-ADUser -Identity $aRef -Property HomeDirectory -server $pdc
+    try {
+        $ad_user = Get-ADUser -Identity $aRef -Property HomeDirectory -server $pdc
+    } catch 
+    {
+        Write-Warning ("AD Account Not Found.  Ref: {0}" -f $aRef)
+    }
 } else {
     $correlationPersonField = ($config.correlationPersonField | Invoke-Expression)
     $correlationAccountField = $config.correlationAccountField
