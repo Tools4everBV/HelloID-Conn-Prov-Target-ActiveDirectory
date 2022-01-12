@@ -12,9 +12,29 @@ $auditLogs = New-Object Collections.Generic.List[PSCustomObject];
 $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
 #endregion Initialize default properties
 
+#region Support Functions
+function Get-ConfigProperty
+{
+    [cmdletbinding()]
+    Param (
+        [object]$object,
+        [string]$property
+    )
+    Process {
+        $subItems = $property.split('.')
+        $value = $object.psObject.copy()
+        for($i = 0; $i -lt $subItems.count; $i++)
+        {
+            $value = $value."$($subItems[$i])"
+        }
+        return $value
+    }
+}
+#endregion Support Functions
+
 #region Change mapping here
     #Correlation
-    $correlationPersonField = ($config.correlationPersonField | Invoke-Expression)
+    $correlationPersonField = Get-ConfigProperty -object $p -property ($config.correlationPersonField -replace '\$p.','')
     $correlationAccountField = $config.correlationAccountField
 #endregion Change mapping here
 
