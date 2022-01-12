@@ -11,7 +11,7 @@
   {
     "key": "correlationPersonField",
     "type": "input",
-    "defaultValue": "$p.ExternalId",
+    "defaultValue": "ExternalId",
     "templateOptions": {
       "label": "Person Correlation Field",
       "required": true
