@@ -76,7 +76,7 @@ $target = @{
 #region Execute
 Write-Information ("Existing Permissions: {0}" -f $entitlementContext)
 $desiredPermissions = @{}
-if($o -match "grant|update" -AND ($existing_homedir -OR ![string]::IsNullOrWhiteSpace($p.custom.HomeDirPath)))
+if($o -match "grant|update")
 {
     $desiredPermissions["HomeDirectory"] = $calcHomeDirectory
 }
