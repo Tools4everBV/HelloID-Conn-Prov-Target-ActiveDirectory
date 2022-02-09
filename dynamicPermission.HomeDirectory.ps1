@@ -31,6 +31,26 @@ $subPermissions = New-Object Collections.Generic.List[PSCustomObject]
 $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
 #endregion Initialize default properties
 
+#region Support Functions
+function Get-ConfigProperty
+{
+    [cmdletbinding()]
+    Param (
+        [object]$object,
+        [string]$property
+    )
+    Process {
+        $subItems = $property.split('.')
+        $value = $object.psObject.copy()
+        for($i = 0; $i -lt $subItems.count; $i++)
+        {
+            $value = $value."$($subItems[$i])"
+        }
+        return $value
+    }
+}
+#endregion Support Functions
+
 #region Change mapping here
 if(-Not($dryRun -eq $True))
 {
@@ -41,7 +61,7 @@ if(-Not($dryRun -eq $True))
         Write-Warning ("AD Account Not Found.  Ref: {0}" -f $aRef)
     }
 } else {
-    $correlationPersonField = ($config.correlationPersonField | Invoke-Expression)
+    $correlationPersonField = Get-ConfigProperty -object $p -property ($config.correlationPersonField -replace '\$p.','')
     $correlationAccountField = $config.correlationAccountField
     $filter = "($($correlationAccountField)=$($correlationPersonField))"
     Write-Information "LDAP Filter: $($filter)"
@@ -76,7 +96,7 @@ $target = @{
 #region Execute
 Write-Information ("Existing Permissions: {0}" -f $entitlementContext)
 $desiredPermissions = @{}
-if($o -match "grant|update" -AND ($existing_homedir -OR ![string]::IsNullOrWhiteSpace($p.custom.HomeDirPath)))
+if($o -match "grant|update")
 {
     $desiredPermissions["HomeDirectory"] = $calcHomeDirectory
 }
