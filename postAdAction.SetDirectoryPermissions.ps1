@@ -1,8 +1,9 @@
 #Initialize default properties
-$p    = $person | ConvertFrom-Json
-$m    = $manager | ConvertFrom-Json
+$p = $person | ConvertFrom-Json
+$m = $manager | ConvertFrom-Json
 $aRef = $accountReference | ConvertFrom-Json
 $mRef = $managerAccountReference | ConvertFrom-Json
+$location = $p.primaryContract.Location.Code
 
 # The entitlementContext contains the domainController, adUser, configuration, exchangeConfiguration and exportData
 # - domainController: The IpAddress and name of the domain controller used to perform the action on the account
@@ -21,71 +22,124 @@ $WarningPreference = "Continue"
 #region Change mapping here
 $adUser = Get-ADUser $eRef.adUser.ObjectGuid
 
-$calcDirectory = "\\server\share\optional-folder\$($adUser.sAMAccountName)"
+# HomeDir
+$HomeDirPath = "\\server\share\optional-folder\$($adUser.sAMAccountName)"
 Write-Verbose "HomeDir path: $($calcDirectory)"
 
-$target = @{
-    ad_user      = $adUser
-    path         = $calcDirectory
-    fsr          = [System.Security.AccessControl.FileSystemRights]"FullControl" #File System Rights
-    act          = [System.Security.AccessControl.AccessControlType]::Allow #Access Control Type
-    inf          = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" #Inheritance Flags
-    pf           = [System.Security.AccessControl.PropagationFlags]"InheritOnly" #Propagation Flags
+$targetHome = @{
+    ad_user = $adUser
+    path    = $HomeDirPath
+    fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" #File System Rights
+    act     = [System.Security.AccessControl.AccessControlType]::Allow #Access Control Type
+    inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" #Inheritance Flags
+    pf      = [System.Security.AccessControl.PropagationFlags]"InheritOnly" #Propagation Flags
+}
+
+# ProfileDir
+$ProfileDirPath = "\\server\share\optional-folder\$($adUser.sAMAccountName)"
+Write-Verbose "ProfileDir path: $($ProfileDirPath)"
+
+$targetProfile = @{
+    ad_user = $adUser
+    path    = $ProfileDirPath
+    fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" #File System Rights
+    act     = [System.Security.AccessControl.AccessControlType]::Allow #Access Control Type
+    inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" #Inheritance Flags
+    pf      = [System.Security.AccessControl.PropagationFlags]"InheritOnly" #Propagation Flags
 }
 
 #endregion Change mapping here
 
 if (-Not($dryRun -eq $true)) {
-    # Write create logic here
+    # HomeDir
     try {
-        $path_exists = test-path $target.path
-        if (-Not $path_exists) {
+        $homeDirExists = test-path $targetHome.path
+        if (-Not $homeDirExists) {
             $success = $false
             $auditLogs.Add([PSCustomObject]@{
                     Action  = "CreateAccount"
-                    Message = "Failed to grant permissions $($target.fsr) for user $($target.ad_user.distinguishedName) to directory $($target.path). Error: No directory found at path: $($target.path)"
+                    Message = "Failed to grant permissions $($targetHome.fsr) for user $($targetHome.ad_user.distinguishedName) to directory $($targetHome.path). Error: No directory found at path: $($targetHome.path)"
                     IsError = $True
                 })
-            Write-Error "No directory found at path: $($target.path)"                
+            Write-Error "No directory found at path: $($targetHome.path)"                
         }
 
         #Return ACL to modify
-        $acl = Get-Acl $target.path
+        $acl = Get-Acl $targetHome.path
         
         #Assign rights to user
-        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($target.ad_user.SID, $target.fsr, $target.inf, $target.pf, $target.act)
+        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($targetHome.ad_user.SID, $targetHome.fsr, $targetHome.inf, $targetHome.pf, $targetHome.act)
         $acl.AddAccessRule($accessRule)
 
-        Write-Verbose "Setting ACL permissions. File System Rights:$($target.fsr), Inheritance Flags:$($target.inf), Propagation Flags:$($target.pf), Access Control Type:$($target.act) for user $($target.ad_user.distinguishedName)"
-        $job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($target, $acl)
-        Write-Information "Succesfully set ACL permissions. FSR:$($target.fsr), InF:$($target.inf), PF:$($target.pf), ACT:$($target.act) for user $($target.ad_user.distinguishedName)"
+        Write-Verbose "Setting ACL permissions. File System Rights:$($targetHome.fsr), Inheritance Flags:$($targetHome.inf), Propagation Flags:$($targetHome.pf), Access Control Type:$($targetHome.act) for user $($targetHome.ad_user.distinguishedName)"
+        $job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($targetHome, $acl)
+        Write-Information "Succesfully set ACL permissions. FSR:$($targetHome.fsr), InF:$($targetHome.inf), PF:$($targetHome.pf), ACT:$($targetHome.act) for user $($targetHome.ad_user.distinguishedName)"
 
         $success = $true
         $auditLogs.Add([PSCustomObject]@{
                 Action  = "CreateAccount"
-                Message = "Successfully granted permissions $($target.fsr) for user $($target.ad_user.distinguishedName) to directory $($target.path)"
+                Message = "Successfully granted permissions $($targetHome.fsr) for user $($targetHome.ad_user.distinguishedName) to directory $($targetHome.path)"
                 IsError = $False
             })
-
-        # Update aRef with Home Dir path
-        $aRef.HomeDirectory = $target.path
     }
     catch {
         $success = $False
         $auditLogs.Add([PSCustomObject]@{
                 Action  = "CreateAccount"
-                Message = "Failed to grant permissions $($target.fsr) for user $($target.ad_user.distinguishedName) to directory $($target.path). Error: $($_)"
+                Message = "Failed to grant permissions $($targetProfile.fsr) for user $($targetProfile.ad_user.distinguishedName) to directory $($targetHome.path). Error: $($_)"
                 IsError = $True
             })
         throw $_
     }
-} else {
+
+    # ProfileDir
+    try {
+        $profileDirExists = test-path $targetProfile.path
+        if (-Not $profileDirExists) {
+            $success = $false
+            $auditLogs.Add([PSCustomObject]@{
+                    Action  = "CreateAccount"
+                    Message = "Failed to grant permissions $($targetProfile.fsr) for user $($targetProfile.ad_user.distinguishedName) to directory $($targetProfile.path). Error: No directory found at path: $($targetProfile.path)"
+                    IsError = $True
+                })
+            Write-Error "No directory found at path: $($targetProfile.path)"                
+        }
+
+        #Return ACL to modify
+        $acl = Get-Acl $targetProfile.path
+
+        #Assign rights to user
+        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($targetProfile.ad_user.SID, $targetProfile.fsr, $targetProfile.inf, $targetProfile.pf, $targetProfile.act)
+        $acl.AddAccessRule($accessRule)
+
+        Write-Verbose "Setting ACL permissions. File System Rights:$($targetProfile.fsr), Inheritance Flags:$($targetProfile.inf), Propagation Flags:$($targetProfile.pf), Access Control Type:$($targetProfile.act) for user $($targetProfile.ad_user.distinguishedName)"
+        $job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($targetProfile, $acl)
+        Write-Information "Succesfully set ACL permissions. FSR:$($targetProfile.fsr), InF:$($targetProfile.inf), PF:$($targetProfile.pf), ACT:$($targetProfile.act) for user $($targetProfile.ad_user.distinguishedName)"
+
+        $success = $true
+        $auditLogs.Add([PSCustomObject]@{
+                Action  = "CreateAccount"
+                Message = "Successfully granted permissions $($targetProfile.fsr) for user $($targetProfile.ad_user.distinguishedName) to directory $($targetProfile.path)"
+                IsError = $False
+            })
+    }
+    catch {
+        $success = $False
+        $auditLogs.Add([PSCustomObject]@{
+                Action  = "CreateAccount"
+                Message = "Failed to grant permissions $($targetProfile.fsr) for user $($targetProfile.ad_user.distinguishedName) to directory $($targetProfile.path). Error: $($_)"
+                IsError = $True
+            })
+        throw $_
+    }
+}
+else {
     # Write dry run logic here
 }
 
 #build up result
 $result = [PSCustomObject]@{
-	Success   = $success
+    Success   = $success
     AuditLogs = $auditLogs
 
     # Return data for use in other systems.
