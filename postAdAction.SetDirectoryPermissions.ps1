@@ -26,13 +26,22 @@ $adUser = Get-ADUser $eRef.adUser.ObjectGuid
 $HomeDirPath = "\\server\share\optional-folder\$($adUser.sAMAccountName)"
 Write-Verbose "HomeDir path: $($calcDirectory)"
 
+# Permissions options:
+# Apply to this folder, subfolder and files:
+#   InheritanceFlags = "ContainerInherit, ObjectInherit"
+#   PropagationFlags = "None"
+
+# Apply to subfolder and files:
+#   InheritanceFlags = "ContainerInherit, ObjectInherit"
+#   PropagationFlags = "InheritOnly"
+
 $targetHome = @{
     ad_user = $adUser
     path    = $HomeDirPath
-    fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" #File System Rights
-    act     = [System.Security.AccessControl.AccessControlType]::Allow #Access Control Type
-    inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" #Inheritance Flags
-    pf      = [System.Security.AccessControl.PropagationFlags]"InheritOnly" #Propagation Flags
+    fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
+    act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
+    inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
+    pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
 }
 
 # ProfileDir
@@ -42,10 +51,10 @@ Write-Verbose "ProfileDir path: $($ProfileDirPath)"
 $targetProfile = @{
     ad_user = $adUser
     path    = $ProfileDirPath
-    fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" #File System Rights
-    act     = [System.Security.AccessControl.AccessControlType]::Allow #Access Control Type
-    inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" #Inheritance Flags
-    pf      = [System.Security.AccessControl.PropagationFlags]"InheritOnly" #Propagation Flags
+    fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
+    act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
+    inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
+    pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
 }
 
 #endregion Change mapping here
@@ -71,9 +80,9 @@ if (-Not($dryRun -eq $true)) {
         $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($targetHome.ad_user.SID, $targetHome.fsr, $targetHome.inf, $targetHome.pf, $targetHome.act)
         $acl.AddAccessRule($accessRule)
 
-        Write-Verbose "Setting ACL permissions. File System Rights:$($targetHome.fsr), Inheritance Flags:$($targetHome.inf), Propagation Flags:$($targetHome.pf), Access Control Type:$($targetHome.act) for user $($targetHome.ad_user.distinguishedName)"
+        Write-Verbose "Setting ACL permissions. File System Rights:$($targetHome.fsr), Inheritance Flags:$($targetHome.inf), Propagation Flags:$($targetHome.pf), Access Control Type:$($targetHome.act) for user $($targetHome.ad_user.distinguishedName) to directory $($targetHome.path)"
         $job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($targetHome, $acl)
-        Write-Information "Succesfully set ACL permissions. FSR:$($targetHome.fsr), InF:$($targetHome.inf), PF:$($targetHome.pf), ACT:$($targetHome.act) for user $($targetHome.ad_user.distinguishedName)"
+        Write-Information "Succesfully set ACL permissions. FSR:$($targetHome.fsr), InF:$($targetHome.inf), PF:$($targetHome.pf), ACT:$($targetHome.act) for user $($targetHome.ad_user.distinguishedName) to directory $($targetHome.path)"
 
         $success = $true
         $auditLogs.Add([PSCustomObject]@{
@@ -112,9 +121,9 @@ if (-Not($dryRun -eq $true)) {
         $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($targetProfile.ad_user.SID, $targetProfile.fsr, $targetProfile.inf, $targetProfile.pf, $targetProfile.act)
         $acl.AddAccessRule($accessRule)
 
-        Write-Verbose "Setting ACL permissions. File System Rights:$($targetProfile.fsr), Inheritance Flags:$($targetProfile.inf), Propagation Flags:$($targetProfile.pf), Access Control Type:$($targetProfile.act) for user $($targetProfile.ad_user.distinguishedName)"
+        Write-Verbose "Setting ACL permissions. File System Rights:$($targetProfile.fsr), Inheritance Flags:$($targetProfile.inf), Propagation Flags:$($targetProfile.pf), Access Control Type:$($targetProfile.act) for user $($targetProfile.ad_user.distinguishedName) to directory $($targetHome.path)"
         $job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($targetProfile, $acl)
-        Write-Information "Succesfully set ACL permissions. FSR:$($targetProfile.fsr), InF:$($targetProfile.inf), PF:$($targetProfile.pf), ACT:$($targetProfile.act) for user $($targetProfile.ad_user.distinguishedName)"
+        Write-Information "Succesfully set ACL permissions. FSR:$($targetProfile.fsr), InF:$($targetProfile.inf), PF:$($targetProfile.pf), ACT:$($targetProfile.act) for user $($targetProfile.ad_user.distinguishedName) to directory $($targetProfile.path)"
 
         $success = $true
         $auditLogs.Add([PSCustomObject]@{
