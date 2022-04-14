@@ -51,7 +51,7 @@ foreach ($contract in $p.Contracts) {
             throw "Multiple Groups found with name: $name . Please correct this so the description is unique."
         }
 
-        $group_DisplayName = $ADGroup.DisplayName
+        $group_DisplayName = $ADGroup.Name
         $group_ObjectGUID = $ADGroup.ObjectGUID
         $desiredPermissions["$($group_DisplayName)"] = $group_ObjectGUID
     }
