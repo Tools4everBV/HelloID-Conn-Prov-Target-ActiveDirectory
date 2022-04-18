@@ -10,7 +10,14 @@ $config = @{
 }
 
 #Get PDC
-$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+try{
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
+catch {
+    Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
+    Write-Warning "Retrying PDC Lookup"
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
 
 #endregion Configuration
 
