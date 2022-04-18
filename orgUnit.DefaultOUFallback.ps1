@@ -6,7 +6,14 @@ $ma = $managerAccountReference | ConvertFrom-Json
 $success = $false
 
 #Get Primary Domain Controller
-$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+try{
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
+catch {
+    Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
+    Write-Warning "Retrying PDC Lookup"
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
 #endregion Initialize default properties
 
 #region Change mapping here

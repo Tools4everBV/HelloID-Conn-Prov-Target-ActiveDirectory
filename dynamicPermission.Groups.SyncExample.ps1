@@ -12,7 +12,14 @@ $success = $True
 $auditLogs = New-Object Collections.Generic.List[PSCustomObject];
 $dynamicPermissions = New-Object Collections.Generic.List[PSCustomObject];
 
-$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+try{
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
+catch {
+    Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
+    Write-Warning "Retrying PDC Lookup"
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
 #endregion Initialize default properties
 
 #region Supporting Functions

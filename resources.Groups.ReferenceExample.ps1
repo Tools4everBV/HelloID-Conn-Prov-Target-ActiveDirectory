@@ -5,7 +5,14 @@ $success = $false
 $auditLogs = New-Object Collections.Generic.List[PSCustomObject]
 
 #Get Primary Domain Controller
-$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+try{
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
+catch {
+    Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
+    Write-Warning "Retrying PDC Lookup"
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
 Write-Information "Using PDC [$pdc]"
 
 # In preview only the first 10 items of the SourceData are used
