@@ -103,6 +103,7 @@ foreach ($permission in $desiredPermissions.GetEnumerator()) {
                 $ADGroup = Get-ADGroup -Identity $ObjectGUID
 
                 #Note:  No errors thrown if user is already a member.
+                Write-Verbose "Adding user: $($aRef) to group: $($ADGroup)"
                 Add-ADGroupMember -Identity $ADGroup -Members @($aRef) -server $pdc
 
                 $success = $true
@@ -142,7 +143,8 @@ foreach ($permission in $currentPermissions.GetEnumerator()) {
                 $ObjectGUID = "$($permission.Value)"
                 $ADGroup = Get-ADGroup -Identity $ObjectGUID
 
-                Remove-ADGroupMember! -Identity $ADGroup -Members @($aRef) -Confirm:$false -server $pdc
+                Write-Verbose "Removing user: $($aRef) from group: $($ADGroup)"
+                Remove-ADGroupMember -Identity $ADGroup -Members @($aRef) -Confirm:$false -server $pdc
 
                 $success = $true
                 $auditLogs.Add(
