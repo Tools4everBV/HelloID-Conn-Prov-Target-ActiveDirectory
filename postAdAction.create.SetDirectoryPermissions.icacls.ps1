@@ -77,6 +77,7 @@ if (-Not($dryRun -eq $true)) {
         }
     
         # Icacls docs: https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/icacls 
+        # $setAclOwner = TAKEOWN /F $targetHome.path /A #<- Optional setting owner if needed
         $setAcl = icacls $targetHome.path /grant "$($targetHome.ad_user.sAMAccountName):$($inher)$($perm)" /T
         Write-Information "Succesfully set permissions: $($targetHome.permission) for user: $($targetHome.ad_user.sAMAccountName) to $($targetHome.inheritance) for directory: $($targetHome.path)"
         
