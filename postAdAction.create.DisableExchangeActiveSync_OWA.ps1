@@ -7,9 +7,11 @@ $auditLogs = [Collections.Generic.List[PSCustomObject]]::new()
 $eRef = $entitlementContext | ConvertFrom-Json
 
 #region Disable the ActiveSync on Mailbox new user
-$ExchangeURI = ""
-$username = ""
-$password = ""
+$ExchangeURI = $eRef.Configuration.ExchangeURI
+$username = $eRef.Configuration.ExchangeUser
+$password = $eRef.Configuration.ExchangePassword
+
+$Domaincontroller = Get-ADDomain | Select-Object -Property PDCEmulator
 
 $userCredential = New-Object -TypeName pscredential $username, (ConvertTo-SecureString $password -AsPlainText -Force)
 $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ExchangeURI -Authentication Kerberos -Credential $UserCredential
@@ -20,7 +22,7 @@ $currentUser = Get-ADUser $aRef.ObjectGuid
 if (-Not($dryRun -eq $True)) {
     Try{
         $adUser = $currentUser.samaccountname   
-        Set-CASMailbox -Identity $adUSer -ActiveSyncEnabled $false -OWAforDevicesEnabled $false
+        Set-CASMailbox -Identity $adUSer -ActiveSyncEnabled $false -OWAEnabled $false -OWAforDevicesEnabled $false -DomainController $($Domaincontroller.PDCEmulator)
         $success = $true
         $auditLogs.Add([PSCustomObject]@{
             Action  = "CreateAccount"
@@ -52,6 +54,11 @@ $result = [PSCustomObject]@{
     # Return data for use in other systems.
     # If not present or empty the default export data will be used
     # ExportData = [PSCustomObject]@{}
+}
+try{
+    Remove-PSSession $Session
+}catch{
+    Write-Error "Error message ending session: $_" 
 }
 
 #send result back
