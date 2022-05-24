@@ -1,3 +1,5 @@
+# PLEASE USER configuration_adpost_disable_owa_activesync.json FOR THE CUSOM CONNECTOR CONFIGURATION
+
 #Initialize default properties
 $p = $person | ConvertFrom-Json
 $m = $manager | ConvertFrom-Json
