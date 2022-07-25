@@ -19,22 +19,21 @@ $verbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-# Get Current Account
-$properties = @('SID', 'ObjectGuid', 'UserPrincipalName', 'SamAccountName', 'Description')
-$previousAccount = Get-ADUser -Identity $aRef.ObjectGuid -Properties $properties -Server $eRef.domainController.Name | Select-Object $properties
-
 #region Change mapping here
 $currentDate = (Get-Date).ToString("dd/MM/yyyy hh:mm:ss")
 $account = @{
-    Identity  = $aRef.ObjectGuid
+    Identity    = $aRef.ObjectGuid
     Description = "Enabled by HelloID at $currentDate"
 }
 
 #endregion Change mapping here
 
 if (-Not($dryRun -eq $true)) {
-    # HomeDir
     try {
+        # Get Current Account
+        $properties = @('SID', 'ObjectGuid', 'UserPrincipalName', 'SamAccountName', 'Description')
+        $previousAccount = Get-ADUser -Identity $account.Identity -Properties $properties -Server $eRef.domainController.Name | Select-Object $properties
+
         Write-Verbose "Updating AD account $($account.Identity). Previous Description: $($previousAccount.Description). New Description: '$($account.Description)'"
         $updateUser = Set-ADUser @account -ErrorAction Stop
         Write-Information "Succesfully updated AD account $($account.Identity). Previous Description: '$($previousAccount.Description)'. New Description: '$($account.Description)'"
@@ -49,7 +48,7 @@ if (-Not($dryRun -eq $true)) {
     catch {
         $success = $False
         $auditLogs.Add([PSCustomObject]@{
-                Action  = "CreateAccount"
+                Action  = "EnableAccount"
                 Message = "Failed to update AD account $($account.Identity). Previous Description: '$($previousAccount.Description)'. New Description: '$($account.Description)'. Error: $($_)"
                 IsError = $True
             })
