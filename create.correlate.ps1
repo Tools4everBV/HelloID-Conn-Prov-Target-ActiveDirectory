@@ -38,7 +38,7 @@ catch
                 Message = "Account failed to correlate:  $_"
                 IsError = $True
             });
-	Write-Error $_;
+	Write-Verbose -Verbose $_
 }
 #endregion Execute
 
