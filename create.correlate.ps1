@@ -1,54 +1,98 @@
-#region Initialize default properties
-$config = ConvertFrom-Json $configuration
+#####################################################
+# HelloID-Conn-Prov-Target-ActiveDirectory-Create-CorrelateUser
+#
+# Version: 1.1.0
+#####################################################
+# Initialize default values
+$c = $configuration | ConvertFrom-Json
 $p = $person | ConvertFrom-Json
-$pp = $previousPerson | ConvertFrom-Json
-$pd = $personDifferences | ConvertFrom-Json
-$m = $manager | ConvertFrom-Json
+$success = $true # Set to true at start, because only when an error occurs it is set to false
+$auditLogs = [System.Collections.Generic.List[PSCustomObject]]::new()
 
-$success = $False
-$auditLogs = New-Object Collections.Generic.List[PSCustomObject];
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+# Set debug logging
+switch ($($c.isDebug)) {
+    $true { $VerbosePreference = 'Continue' }
+    $false { $VerbosePreference = 'SilentlyContinue' }
+}
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# Change mapping here
+$account = [PSCustomObject]@{
+    SAMAccountName = $p.Accounts.MicrosoftActiveDirectory.SAMAccountName
+}
+
+# # Troubleshooting
+# $account = [PSCustomObject]@{
+#     SAMAccountName = $p.Accounts.MicrosoftActiveDirectory.SAMAccountName
+# }
+# $dryRun = $false
 
 #Get Primary Domain Controller
-$pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
-#endregion Initialize default properties
+try {
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
+catch {
+    Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
+    Write-Warning "Retrying PDC Lookup"
+    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+}
 
-#region Execute
-try{
-    $sAMAccountName = $p.accounts.MicrosoftActiveDirectory.sAMAccountName 
-    Write-Information "Identity: $($sAMAccountName)";
+try {
+    Write-Verbose "Querying user with SAMAccountName '$($account.SAMAccountName)'"
+
+    if ([string]::IsNullOrEmpty($account.SAMAccountName)) { throw "No SAMAccountName provided" }  
     
-	$account = Get-ADUser -Identity $sAMAccountName -Property sAMAccountName -Server $pdc
-	
-    if($account -eq $null) { throw "Failed to return a account" }
+    $user = Get-ADUser -Identity $account.SAMAccountName -Server $pdc -ErrorAction Stop
+    
+    if ($null -eq $user.Guid) { throw "Failed to return a user with SAMAccountName '$($account.SAMAccountName)'" }
 
-    Write-Information "Account correlated to $($account.sAMAccountName)";
+    $aRef = $user.SID.Value
 
-	$auditLogs.Add([PSCustomObject]@{
-                Action = "CreateAccount"
-                Message = "Account correlated to $($account.sAMAccountName)";
-                IsError = $false;
-            });
-	
-    $success = $true;
-}
-catch
-{
     $auditLogs.Add([PSCustomObject]@{
-                Action = "CreateAccount"
-                Message = "Account failed to correlate:  $_"
-                IsError = $True
-            });
-	Write-Verbose -Verbose $_
+            Action  = "CreateAccount"
+            Message = "Successfully queried and correlated to user $($user.SAMAccountName) ($($user.SID.Value))"
+            IsError = $false
+        })
 }
-#endregion Execute
+catch { 
+    $ex = $PSItem
+    
+    # If error message empty, fall back on $ex.Exception.Message
+    if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
+        $verboseErrorMessage = $ex.Exception.Message
+    }
+    if ([String]::IsNullOrEmpty($auditErrorMessage)) {
+        $auditErrorMessage = $ex.Exception.Message
+    }
 
-#region build up result
-$result = [PSCustomObject]@{
-    Success= $success;
-    AccountReference= $account.SID.Value
-    AuditLogs = $auditLogs;
-    Account = $account;
-};
+    Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+    $success = $false
+    $auditLogs.Add([PSCustomObject]@{
+            Action  = "CreateAccount"
+            Message = "Error querying user with SAMAccountName '$($account.SAMAccountName)'. Error Message: $auditErrorMessage"
+            IsError = $True
+        })       
+}
+finally {
+    # Send results
+    $result = [PSCustomObject]@{
+        Success          = $success
+        AccountReference = $aRef
+        AuditLogs        = $auditLogs
+        Account          = $account
 
-Write-Output $result | ConvertTo-Json -Depth 10
-#endregion build up result
+        # Optionally return data for use in other systems
+        ExportData       = [PSCustomObject]@{
+            DisplayName       = $user.Name
+            SAMAccountName    = $user.SAMAccountName
+            UserPrincipalName = $user.UserPrincipalName
+            SID               = $user.SID.Value
+        }
+    }
+
+    Write-Output $result | ConvertTo-Json -Depth 10
+}
