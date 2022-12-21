@@ -254,7 +254,7 @@ try {
     }
 }
 #endregion Execute
-finally {
+finally { 
     # Check if auditLogs contains errors, if no errors are found, set success to true
     if (-NOT($auditLogs.IsError -contains $true)) {
         $success = $true
