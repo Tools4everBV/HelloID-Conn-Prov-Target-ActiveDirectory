@@ -55,21 +55,21 @@ function Get-ADSanitizeGroupName {
     param(
         [parameter(Mandatory = $true)][String]$Name
     )
-    $newName = $name.trim();
+    $newName = $name.trim()
     $newName = $newName -replace ' - ', '_'
-    $newName = $newName -replace '[`,~,!,#,$,%,^,&,*,(,),+,=,<,>,?,/,'',",;,:,\,|,},{,.]', ''
-    $newName = $newName -replace '\[', '';
-    $newName = $newName -replace ']', '';
-    # $newName = $newName -replace ' ', '_';
-    $newName = $newName -replace '\.\.\.\.\.', '.';
-    $newName = $newName -replace '\.\.\.\.', '.';
-    $newName = $newName -replace '\.\.\.', '.';
-    $newName = $newName -replace '\.\.', '.';
+    $newName = $newName -replace '[`,~,!,#,$,%,^,&,*,(,),+,=,<,>,?,/,'',",,:,\,|,},{,.]', ''
+    $newName = $newName -replace '\[', ''
+    $newName = $newName -replace ']', ''
+    # $newName = $newName -replace ' ', '_'
+    $newName = $newName -replace '\.\.\.\.\.', '.'
+    $newName = $newName -replace '\.\.\.\.', '.'
+    $newName = $newName -replace '\.\.\.', '.'
+    $newName = $newName -replace '\.\.', '.'
 
     # Remove diacritics
     $newName = Remove-StringLatinCharacters $newName
     
-    return $newName;
+    return $newName
 }
 #endregion Supporting Functions
 
@@ -254,7 +254,7 @@ try {
     }
 }
 #endregion Execute
-catch{ 
+finally {
     # Check if auditLogs contains errors, if no errors are found, set success to true
     if (-NOT($auditLogs.IsError -contains $true)) {
         $success = $true
