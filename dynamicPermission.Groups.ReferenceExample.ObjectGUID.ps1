@@ -13,7 +13,7 @@ $m = $manager | ConvertFrom-Json
 $aRef = $accountReference | ConvertFrom-Json
 $mRef = $managerAccountReference | ConvertFrom-Json
 
-$success = $True
+$success = $false
 $auditLogs = New-Object Collections.Generic.List[PSCustomObject]
 
 # Operation is a script parameter which contains the action HelloID wants to perform for this permission
@@ -128,132 +128,144 @@ if ($o -ne "revoke") {
 }
 
 Write-Information ("Desired Permissions: {0}" -f ($desiredPermissions.Values | ConvertTo-Json))
+
+Write-Information ("Existing Permissions: {0}" -f ($eRef.CurrentPermissions.DisplayName | ConvertTo-Json))
 #endregion Change mapping here
 
 #region Execute
-Write-Information ("Existing Permissions: {0}" -f ($eRef.CurrentPermissions.DisplayName | ConvertTo-Json))
+try {
+    # Compare desired with current permissions and grant permissions
+    foreach ($permission in $desiredPermissions.GetEnumerator()) {
+        $subPermissions.Add([PSCustomObject]@{
+                DisplayName = $permission.Value
+                Reference   = [PSCustomObject]@{ Id = $permission.Name }
+            })
 
-# Compare desired with current permissions and grant permissions
-foreach ($permission in $desiredPermissions.GetEnumerator()) {
-    $subPermissions.Add([PSCustomObject]@{
-            DisplayName = $permission.Value
-            Reference   = [PSCustomObject]@{ Id = $permission.Name }
-        })
+        if (-Not $currentPermissions.ContainsKey($permission.Name)) {
+            # Grant AD Groupmembership
+            try {
+                if ($dryRun -eq $false) {
+                    Write-Verbose "Granting permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
 
-    if (-Not $currentPermissions.ContainsKey($permission.Name)) {
-        # Grant AD Groupmembership
-        try {
-            if ($dryRun -eq $false) {
-                Write-Verbose "Granting permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
+                    #Note:  No errors thrown if user is already a member.
+                    Add-ADGroupMember -Identity $($permission.Name) -Members @($aRef) -server $pdc -ErrorAction 'Stop'
 
-                #Note:  No errors thrown if user is already a member.
-                Add-ADGroupMember -Identity $($permission.Name) -Members @($aRef) -server $pdc -ErrorAction 'Stop'
+                    $auditLogs.Add([PSCustomObject]@{
+                            Action  = "GrantPermission"
+                            Message = "Successfully granted permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
+                            IsError = $false
+                        })
+                }
+                else {
+                    Write-Warning "DryRun: Would grant permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
+                }
+            }
+            catch {
+                # If error message empty, fall back on $ex.Exception.Message
+                if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
+                    $verboseErrorMessage = $ex.Exception.Message
+                }
+                if ([String]::IsNullOrEmpty($auditErrorMessage)) {
+                    $auditErrorMessage = $ex.Exception.Message
+                }
 
+                Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
                 $auditLogs.Add([PSCustomObject]@{
                         Action  = "GrantPermission"
-                        Message = "Successfully granted permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
-                        IsError = $false
+                        Message = "Error granting permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'. Error Message: $auditErrorMessage"
+                        IsError = $True
                     })
             }
-            else {
-                Write-Warning "DryRun: Would grant permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
-            }
-        }
-        catch {
-            # If error message empty, fall back on $ex.Exception.Message
-            if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
-                $verboseErrorMessage = $ex.Exception.Message
-            }
-            if ([String]::IsNullOrEmpty($auditErrorMessage)) {
-                $auditErrorMessage = $ex.Exception.Message
-            }
+        }    
+    }
 
-            Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+    # Compare current with desired permissions and revoke permissions
+    $newCurrentPermissions = @{}
+    foreach ($permission in $currentPermissions.GetEnumerator()) {    
+        if (-Not $desiredPermissions.ContainsKey($permission.Name) -AND $permission.Name -ne "No Groups Defined") {
+            # Revoke AD Groupmembership
+            try {
+                if ($dryRun -eq $false) {
+                    Write-Verbose "Revoking permission to group '$($permission.Value) ($($permission.Name))' to user '$aRef'"
 
-            $success = $false
-            $auditLogs.Add([PSCustomObject]@{
-                    Action  = "GrantPermission"
-                    Message = "Error granting permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'. Error Message: $auditErrorMessage"
-                    IsError = $True
+                    Remove-ADGroupMember -Identity $permission.Name -Members @($aRef) -Confirm:$false -server $pdc -ErrorAction 'Stop'
+
+                    $auditLogs.Add([PSCustomObject]@{
+                            Action  = "RevokePermission"
+                            Message = "Successfully revoked permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
+                            IsError = $false
+                        })
+                }
+                else {
+                    Write-Warning "DryRun: Would revoke permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
+                }
+            }
+            # Handle issue of AD Account or Group having been deleted.  Handle gracefully.
+            catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException]{
+                Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+                $auditLogs.Add([PSCustomObject]@{
+                    Action  = "RevokePermission"
+                    Message = "Successfully revoked permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef' (Identity not found. skipped action)"
+                    IsError = $false
                 })
-        }
-    }    
-}
+            }
+            catch {
+                # If error message empty, fall back on $ex.Exception.Message
+                if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
+                    $verboseErrorMessage = $ex.Exception.Message
+                }
+                if ([String]::IsNullOrEmpty($auditErrorMessage)) {
+                    $auditErrorMessage = $ex.Exception.Message
+                }
 
-# Compare current with desired permissions and revoke permissions
-$newCurrentPermissions = @{}
-foreach ($permission in $currentPermissions.GetEnumerator()) {    
-    if (-Not $desiredPermissions.ContainsKey($permission.Name) -AND $permission.Name -ne "No Groups Defined") {
-        # Revoke AD Groupmembership
-        try {
-            if ($dryRun -eq $false) {
-                Write-Verbose "Revoking permission to group '$($permission.Value) ($($permission.Name))' to user '$aRef'"
-
-                Remove-ADGroupMember -Identity $permission.Name -Members @($aRef) -Confirm:$false -server $pdc -ErrorAction 'Stop'
-
+                Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
                 $auditLogs.Add([PSCustomObject]@{
                         Action  = "RevokePermission"
-                        Message = "Successfully revoked permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
-                        IsError = $false
+                        Message = "Error revoking permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'. Error Message: $auditErrorMessage"
+                        IsError = $True
                     })
             }
-            else {
-                Write-Warning "DryRun: Would revoke permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
-            }
+
         }
-        catch {
-            # If error message empty, fall back on $ex.Exception.Message
-            if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
-                $verboseErrorMessage = $ex.Exception.Message
-            }
-            if ([String]::IsNullOrEmpty($auditErrorMessage)) {
-                $auditErrorMessage = $ex.Exception.Message
-            }
+        else {
+            $newCurrentPermissions[$permission.Name] = $permission.Value
+        }
+    }
 
-            Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
-
-            $success = $false
+    # Update current permissions
+    <# Updates not needed for Group Memberships.
+    if ($o -eq "update") {
+        foreach ($permission in $newCurrentPermissions.GetEnumerator()) {    
             $auditLogs.Add([PSCustomObject]@{
-                    Action  = "RevokePermission"
-                    Message = "Error revoking permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'. Error Message: $auditErrorMessage"
-                    IsError = $True
+                    Action  = "UpdatePermission"
+                    Message = "Successfully updated permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
+                    IsError = $false
                 })
         }
-
     }
-    else {
-        $newCurrentPermissions[$permission.Name] = $permission.Value
-    }
-}
+    #>
 
-# Update current permissions
-<# Updates not needed for Group Memberships.
-if ($o -eq "update") {
-    foreach ($permission in $newCurrentPermissions.GetEnumerator()) {    
-        $auditLogs.Add([PSCustomObject]@{
-                Action  = "UpdatePermission"
-                Message = "Successfully updated permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'"
-                IsError = $false
+    # Handle case of empty defined dynamic permissions.  Without this the entitlement will error.
+    if ($o -match "update|grant" -AND $subPermissions.count -eq 0) {
+        $subPermissions.Add([PSCustomObject]@{
+                DisplayName = "No Groups Defined"
+                Reference   = [PSCustomObject]@{ Id = "No Groups Defined" }
             })
     }
 }
-#>
-
-# Handle case of empty defined dynamic permissions.  Without this the entitlement will error.
-if ($o -match "update|grant" -AND $subPermissions.count -eq 0) {
-    $subPermissions.Add([PSCustomObject]@{
-            DisplayName = "No Groups Defined"
-            Reference   = [PSCustomObject]@{ Id = "No Groups Defined" }
-        })
-}
-
 #endregion Execute
+catch{ 
+    # Check if auditLogs contains errors, if no errors are found, set success to true
+    if (-NOT($auditLogs.IsError -contains $true)) {
+        $success = $true
+    }
 
-#region Build up result
-$result = [PSCustomObject]@{
-    Success        = $success
-    SubPermissions = $subPermissions
-    AuditLogs      = $auditLogs
+    #region Build up result
+    $result = [PSCustomObject]@{
+        Success        = $success
+        SubPermissions = $subPermissions
+        AuditLogs      = $auditLogs
+    }
+    Write-Output ($result | ConvertTo-Json -Depth 10)
+    #endregion Build up result
 }
-Write-Output ($result | ConvertTo-Json -Depth 10)
-#endregion Build up result
