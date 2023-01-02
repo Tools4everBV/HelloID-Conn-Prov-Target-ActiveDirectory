@@ -6,7 +6,7 @@
 # Initialize default values
 $c = $configuration | ConvertFrom-Json
 $p = $person | ConvertFrom-Json
-$success = $true # Set to true at start, because only when an error occurs it is set to false
+$success = $false # Set to false at start, at the end, only when no error occurs it is set to true
 $auditLogs = [System.Collections.Generic.List[PSCustomObject]]::new()
 
 # Set TLS to accept TLS, TLS 1.1 and TLS 1.2
@@ -70,7 +70,6 @@ catch {
     }
 
     Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
-    $success = $false
     $auditLogs.Add([PSCustomObject]@{
             Action  = "CreateAccount"
             Message = "Error querying user with SAMAccountName '$($account.SAMAccountName)'. Error Message: $auditErrorMessage"
@@ -78,6 +77,11 @@ catch {
         })       
 }
 finally {
+    # Check if auditLogs contains errors, if no errors are found, set success to true
+    if (-NOT($auditLogs.IsError -contains $true)) {
+        $success = $true
+    }
+
     # Send results
     $result = [PSCustomObject]@{
         Success          = $success
