@@ -1,6 +1,6 @@
 # The resourceData used in this default script uses resources based on Title
 $rRef = $resourceContext | ConvertFrom-Json
-$success = $true
+$success = $false # Set to false at start, at the end, only when no error occurs it is set to true
 
 $auditLogs = [Collections.Generic.List[PSCustomObject]]::new()
 
@@ -92,7 +92,6 @@ try{
                 if (-Not($dryRun -eq $True)) {
                     $NewADGroup = New-ADGroup @ADGroupParams
 
-                    $success = $True
                     $auditLogs.Add([PSCustomObject]@{
                             Message = "Created resource for $($resource) - $distinguishedName"
                             # Message = "Created resource for $($resource.name) - $distinguishedName"
@@ -103,7 +102,6 @@ try{
             }
             else {
                 if ($debug -eq $true) { Write-Warning "Group $($distinguishedName) already exists" }
-                $success = $True
                 # $auditLogs.Add([PSCustomObject]@{
                 #     Message = "Skipped resource for $($resource.name) - $distinguishedName"
                 #     Action  = "CreateResource"
@@ -116,7 +114,6 @@ try{
         catch {
             Write-Warning "Failed to Create $($distinguishedName). Error: $_"
 
-            # $success = $false
             $auditLogs.Add([PSCustomObject]@{
                     Message = "Failed to create resource for $($resource) - $distinguishedName. Error: $_"
                     # Message = "Failed to create resource for $($resource.name) - $distinguishedName. Error: $_"
