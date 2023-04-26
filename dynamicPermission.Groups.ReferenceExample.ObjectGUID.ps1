@@ -1,7 +1,7 @@
 #####################################################
 # HelloID-Conn-Prov-Target-ActiveDirectory-DynamicPermissions-Groups
 #
-# Version: 1.2.0
+# Version: 1.2.1
 #####################################################
 
 #region Initialize default properties
@@ -70,6 +70,70 @@ function Get-ADSanitizeGroupName {
     $newName = Remove-StringLatinCharacters $newName
     
     return $newName
+}
+
+function Resolve-HTTPError {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory,
+            ValueFromPipeline
+        )]
+        [object]$ErrorObject
+    )
+    process {
+        $httpErrorObj = [PSCustomObject]@{
+            FullyQualifiedErrorId = $ErrorObject.FullyQualifiedErrorId
+            MyCommand             = $ErrorObject.InvocationInfo.MyCommand
+            RequestUri            = $ErrorObject.TargetObject.RequestUri
+            ScriptStackTrace      = $ErrorObject.ScriptStackTrace
+            ErrorMessage          = ''
+        }
+
+        if ($ErrorObject.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') {
+            # $httpErrorObj.ErrorMessage = $ErrorObject.ErrorDetails.Message # Does not show the correct error message for the Raet IAM API calls
+            $httpErrorObj.ErrorMessage = $ErrorObject.Exception.Message
+
+        }
+        elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
+            $httpErrorObj.ErrorMessage = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
+        }
+
+        Write-Output $httpErrorObj
+    }
+}
+
+function Get-ErrorMessage {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory,
+            ValueFromPipeline
+        )]
+        [object]$ErrorObject
+    )
+    process {
+        $errorMessage = [PSCustomObject]@{
+            VerboseErrorMessage = $null
+            AuditErrorMessage   = $null
+        }
+
+        if ( $($ErrorObject.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or $($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+            $httpErrorObject = Resolve-HTTPError -Error $ErrorObject
+
+            $errorMessage.VerboseErrorMessage = $httpErrorObject.ErrorMessage
+
+            $errorMessage.AuditErrorMessage = $httpErrorObject.ErrorMessage
+        }
+
+        # If error message empty, fall back on $ex.Exception.Message
+        if ([String]::IsNullOrEmpty($errorMessage.VerboseErrorMessage)) {
+            $errorMessage.VerboseErrorMessage = $ErrorObject.Exception.Message
+        }
+        if ([String]::IsNullOrEmpty($errorMessage.AuditErrorMessage)) {
+            $errorMessage.AuditErrorMessage = $ErrorObject.Exception.Message
+        }
+
+        Write-Output $errorMessage
+    }
 }
 #endregion Supporting Functions
 
@@ -161,18 +225,14 @@ try {
                 }
             }
             catch {
-                # If error message empty, fall back on $ex.Exception.Message
-                if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
-                    $verboseErrorMessage = $ex.Exception.Message
-                }
-                if ([String]::IsNullOrEmpty($auditErrorMessage)) {
-                    $auditErrorMessage = $ex.Exception.Message
-                }
-
-                Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+                $ex = $PSItem
+                $errorMessage = Get-ErrorMessage -ErrorObject $ex
+            
+                Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage)"
+                    
                 $auditLogs.Add([PSCustomObject]@{
                         Action  = "GrantPermission"
-                        Message = "Error granting permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'. Error Message: $auditErrorMessage"
+                        Message = "Error granting permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'. Error Message: $($errorMessage.AuditErrorMessage)"
                         IsError = $True
                     })
             }
@@ -201,27 +261,27 @@ try {
                 }
             }
             # Handle issue of AD Account or Group having been deleted.  Handle gracefully.
-            catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException]{
-                Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
-                $auditLogs.Add([PSCustomObject]@{
-                    Action  = "RevokePermission"
-                    Message = "Successfully revoked permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef' (Identity not found. skipped action)"
-                    IsError = $false
-                })
-            }
-            catch {
-                # If error message empty, fall back on $ex.Exception.Message
-                if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
-                    $verboseErrorMessage = $ex.Exception.Message
-                }
-                if ([String]::IsNullOrEmpty($auditErrorMessage)) {
-                    $auditErrorMessage = $ex.Exception.Message
-                }
+            catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {
+                $ex = $PSItem
+                $errorMessage = Get-ErrorMessage -ErrorObject $ex
+            
+                Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage)"
 
-                Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
                 $auditLogs.Add([PSCustomObject]@{
                         Action  = "RevokePermission"
-                        Message = "Error revoking permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'. Error Message: $auditErrorMessage"
+                        Message = "Successfully revoked permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef' (Identity not found. skipped action)"
+                        IsError = $false
+                    })
+            }
+            catch {
+                $ex = $PSItem
+                $errorMessage = Get-ErrorMessage -ErrorObject $ex
+            
+                Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage)"
+
+                $auditLogs.Add([PSCustomObject]@{
+                        Action  = "RevokePermission"
+                        Message = "Error revoking permission to group '$($permission.Value) ($($permission.Name))' for user '$aRef'. Error Message: $($errorMessage.AuditErrorMessage)"
                         IsError = $True
                     })
             }
