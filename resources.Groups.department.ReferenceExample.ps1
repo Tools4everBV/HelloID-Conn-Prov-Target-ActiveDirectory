@@ -1,24 +1,16 @@
-# The resourceData used in this default script uses resources based on Title
+#####################################################
+# HelloID-Conn-Prov-Target-ActiveDirectory-Resources-Groups-Department
+#
+# Version: 1.1.0
+#####################################################
 $rRef = $resourceContext | ConvertFrom-Json
 $success = $false # Set to false at start, at the end, only when no error occurs it is set to true
 
 $auditLogs = [Collections.Generic.List[PSCustomObject]]::new()
 
-#$AFK = $rRef.SourceData.ADgroepAFK
-#$Class = $p.PrimaryContract.Custom.educationalGroup
-#$ou = $p.primaryContract.custom.OU
-
-#Write-Verbose -Verbose $resourceContext
-
 # Troubleshooting
 # $dryRun = $false
 $debug = $false # Warning! Only set to true when troubleshooting, this will severly impact the performance.
-
-$path = "OU=Groups,OU=Resources,DC=consultancytest,DC=nl"
-$adGroupNamePrefix = ""
-$adGroupNameSuffix = ""
-$adGroupDescriptionPrefix = "Security Group voor combinatie "
-$adGroupDescriptionSuffix = ""
 
 # Variables to define what groups to query (to check if group already exists)
 $adGroupsSearchOUs = @() # Warning! When no searchOUs are specified. Groups from all ous will be retrieved.
@@ -37,7 +29,12 @@ $requiredFields = @()
 # $requiredFields = @('CustomField1','CustomField2')
 
 #region Supporting Functions
-function Get-ADSanitizeGroupName {
+function Get-ADSanitizedGroupName {
+    # The names of security principal objects can contain all Unicode characters except the special LDAP characters defined in RFC 2253.
+    # This list of special characters includes: a leading space a trailing space and any of the following characters: # , + " \ < > 
+    # A group account cannot consist solely of numbers, periods (.), or spaces. Any leading periods or spaces are cropped.
+    # https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2003/cc776019(v=ws.10)?redirectedfrom=MSDN
+    # https://www.ietf.org/rfc/rfc2253.txt    
     param(
         [parameter(Mandatory = $true)][String]$Name
     )
@@ -153,7 +150,7 @@ try {
     else {
         $adGroups = foreach ($adGroupsSearchOU in $adGroupsSearchOUs) {
             Write-Information "Querying AD groups that match filter [$($adGroupsSearchFilter)] in OU [$($adGroupsSearchOU)]"
-            Get-ADGroup @adQuerySplatParams | Select-Object $properties
+            Get-ADGroup @adQuerySplatParams -SearchBase $adGroupsSearchOU | Select-Object $properties
         }
     }
 
@@ -166,7 +163,7 @@ catch {
     $ex = $PSItem
     $errorMessage = Get-ErrorMessage -ErrorObject $ex
 
-    Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($($errorMessage.VerboseErrorMessage))"
+    Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage)"
         
     throw "Failed to query AD groups. Error Message: $($errorMessage.AuditErrorMessage)"
 }
@@ -195,36 +192,46 @@ try {
 
         if (-Not($incompleteResource -eq $True)) {
             try {
+                #region mapping
                 # The names of security principal objects can contain all Unicode characters except the special LDAP characters defined in RFC 2253.
                 # This list of special characters includes: a leading space a trailing space and any of the following characters: # , + " \ < > 
                 # A group account cannot consist solely of numbers, periods (.), or spaces. Any leading periods or spaces are cropped.
                 # https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2003/cc776019(v=ws.10)?redirectedfrom=MSDN
                 # https://www.ietf.org/rfc/rfc2253.txt
 
-                # Example: Department (department differs from other objects as the property for the name is "DisplayName", not "Name")
-                $ADGroupName = ("$adGroupNamePrefix" + "$($resource.DisplayName)" + "$adGroupNameSuffix")
-                $ADGroupDescription = ("$adGroupDescriptionPrefix" + "$($resource.DisplayName)" + "$adGroupDescriptionSuffix")
+                $path = "OU=Groups,OU=Resources,DC=enyoi,DC=org"   
 
-                # Example: Title 
-                # $ADGroupName = ("$adGroupNamePrefix" + "$($resource.Name)" + "$adGroupNameSuffix")
-                # $ADGroupDescription = ("$adGroupDescriptionPrefix" + "$($resource.Name)" + "$adGroupDescriptionSuffix")
+                # Example: Department (department differs from other objects as the property for the name is "DisplayName", not "Name")
+                $groupName = ("department_" + "$($resource.ExternalId)") # Best practice to use the id of the resource to avoid max char limitations and issues in case of name change
+                $groupDescription = ("Security Group for department " + "$($resource.DisplayName)" + ", created by HelloID")
+
+                # Example: Title
+                # $groupName = ("title_" + "$($resource.ExternalId)") # Best practice to use the id of the resource to avoid max char limitations and issues in case of name change
+                # $groupDescription = ("Security Group for title " + "$($resource.Name)" + ", created by HelloID")
 
                 # Example: Custom object (custom object consists of all custom properties)
-                # $ADGroupName = ("$adGroupNamePrefix" + "$($resource.CustomField1)" + "$($resource.CustomField2)" + "$adGroupNameSuffix")
-                # $ADGroupDescription = ("$adGroupDescriptionPrefix" + "$($resource)" + "$adGroupDescriptionSuffix")
+                # $groupName = ("customfield_" + "$($resource.CustomField1)") # Best practice to use the id of the resource to avoid max char limitations and issues in case of name change
+                # $groupDescription = ("Security Group for custom field " + "$($resource.CustomField1)" + ", created by HelloID")
+
+                $groupName = Get-ADSanitizedGroupName -Name $groupName
 
                 $ADGroupParams = @{
-                    Name           = $ADGroupName
-                    SamAccountName = $ADGroupName
+                    Name           = $groupName
+                    SamAccountName = $groupName
                     GroupCategory  = "Security"
                     GroupScope     = "Global"
-                    DisplayName    = $ADGroupName
+                    DisplayName    = $groupName
                     Path           = $path
-                    Description    = $ADGroupDescription
+                    Description    = $groupDescription
                 }
+                #endregion mapping
 
                 $distinguishedName = "CN=$($ADGroupParams.SamAccountName),$($ADGroupParams.Path)"
-                $adGroup = $adGroupsGrouped["$($ADGroupParams.SamAccountName)"]
+                $groupExists = $false
+                $adGroup = $null
+                if($null -ne $adGroupsGrouped){
+                    $adGroup = $adGroupsGrouped["$($ADGroupParams.SamAccountName)"]
+                }
                 if ($null -ne $adGroup) {
                     $groupExists = $true
                 }
@@ -237,21 +244,20 @@ try {
                     while actual run has timeout of 10 minutes #>
                     if (-Not($dryRun -eq $True)) {
                         if ($debug -eq $true) {
-                            Write-Information "Debug: Creating group [$($distinguishedName)]"
+                            Write-Information "Debug: Creating group [$($distinguishedName)] for resource [$($resource | ConvertTo-Json)]"
                             Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)"
                         }
     
                         $NewADGroup = New-ADGroup @ADGroupParams
     
                         $auditLogs.Add([PSCustomObject]@{
-                                Message = "Created group [$($distinguishedName)]"
-                                # Message = "Created resource for $($resource.name) - $distinguishedName"
+                                Message = "Created group [$($distinguishedName)] for resource [$($resource | ConvertTo-Json)]"
                                 Action  = "CreateResource"
                                 IsError = $false
                             })
                     }
                     else {
-                        Write-Warning "DryRun: Would create group [$($distinguishedName)]"
+                        Write-Warning "DryRun: Would create group [$($distinguishedName)] for resource [$($resource | ConvertTo-Json)]"
                         if ($debug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
                     }
     
@@ -262,7 +268,7 @@ try {
                             Write-Information "Debug: Group $($distinguishedName) already exists"
     
                             $auditLogs.Add([PSCustomObject]@{
-                                    Message = "Skipped creating group [$($distinguishedName)]. (Already exists)"
+                                    Message = "Skipped creating group [$($distinguishedName)] for resource [$($resource | ConvertTo-Json)]. (Already exists)"
                                     Action  = "CreateResource"
                                     IsError = $false
                                 })
@@ -270,7 +276,7 @@ try {
     
                     }
                     else {
-                        Write-Warning "DryRun: Group [$($distinguishedName)] already exists"
+                        Write-Warning "DryRun: Group [$($distinguishedName)] for resource [$($resource | ConvertTo-Json)] already exists"
                         if ($debug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
                     }
                 }
@@ -285,7 +291,7 @@ try {
                             Write-Information "Debug: Group $($distinguishedName) already exists"
     
                             $auditLogs.Add([PSCustomObject]@{
-                                    Message = "Skipped creating group [$($distinguishedName)]. (Already exists)"
+                                    Message = "Skipped creating group [$($distinguishedName)] for resource [$($resource | ConvertTo-Json)]. (Already exists)"
                                     Action  = "CreateResource"
                                     IsError = $false
                                 })
@@ -293,21 +299,21 @@ try {
     
                     }
                     else {
-                        Write-Warning "DryRun: Group [$($distinguishedName)] already exists"
+                        Write-Warning "DryRun: Group [$($distinguishedName)] for resource [$($resource | ConvertTo-Json)] already exists"
                         if ($debug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
                     }
                 }
                 else {
-                    Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($($errorMessage.VerboseErrorMessage))"
+                    Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage)"
             
-                    Write-Warning "Failed to create group [$($distinguishedName)]. Error Message: $($errorMessage.AuditErrorMessage)"
+                    Write-Warning "Failed to create group [$($distinguishedName)] for resource [$($resource | ConvertTo-Json)]. Error Message: $($errorMessage.AuditErrorMessage)"
                     if ($debug -eq $true) {
                         Write-Information "Debug: Resource: $($resource | ConvertTo-Json)"
                         Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)"
                     }
         
                     $auditLogs.Add([PSCustomObject]@{
-                            Message = "Failed to create group [$($distinguishedName)]. Error Message: $($errorMessage.AuditErrorMessage)"
+                            Message = "Failed to create group [$($distinguishedName)] for resource [$($resource | ConvertTo-Json)]. Error Message: $($errorMessage.AuditErrorMessage)"
                             Action  = "CreateResource"
                             IsError = $true
                         })
@@ -318,10 +324,10 @@ try {
             if (-Not($dryRun -eq $True)) {
                 if ($debug -eq $true) {
                     Write-Information "Debug: Resource object incomplete, cannot continue. Missing fields: $($missingFields -join ';')"
-                    Write-Information "Debug: Resource object: $($resource | ConvertTo-Json -Depth 10)"
+                    Write-Information "Debug: Resource object: $($resource | ConvertTo-Json)"
     
                     $auditLogs.Add([PSCustomObject]@{
-                            Message = "Skipped creating group for resource [$($resource | ConvertTo-Json -Depth 10)]. (Resource missing required fields)"
+                            Message = "Skipped creating group for resource [$($resource | ConvertTo-Json)]. (Resource missing required fields. Missing fields: $($missingFields -join ';'))"
                             Action  = "CreateResource"
                             IsError = $false
                         })
@@ -329,7 +335,7 @@ try {
             }
             else {
                 Write-Warning "DryRun: Resource object incomplete, cannot continue. Missing fields: $($missingFields -join ';')"
-                if ($debug -eq $true) { Write-Information "Debug: Resource object: $($resource | ConvertTo-Json -Depth 10)" }
+                if ($debug -eq $true) { Write-Information "Debug: Resource object: $($resource | ConvertTo-Json)" }
             }
         }
     }
@@ -337,7 +343,7 @@ try {
 #endregion Execute
 finally {
     # Check if auditLogs contains errors, if no errors are found, set success to true
-    if (-NOT($auditLogs.IsError -contains $true)) {
+    if (-not($auditLogs.IsError -contains $true)) {
         $success = $true
     }
     
@@ -346,6 +352,6 @@ finally {
         Success   = $success
         AuditLogs = $auditLogs
     }
-    Write-Output ($result | ConvertTo-Json -Depth 10)
+    Write-Output ($result | ConvertTo-Json)
     #endregion Build up result
 }
