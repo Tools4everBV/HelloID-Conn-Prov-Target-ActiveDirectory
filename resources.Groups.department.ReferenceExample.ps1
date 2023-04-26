@@ -9,12 +9,14 @@ $success = $false # Set to false at start, at the end, only when no error occurs
 $auditLogs = [Collections.Generic.List[PSCustomObject]]::new()
 
 # Troubleshooting
-# $dryRun = $false
+# $dryRun = $false # In preview, only 10 (random) records will be processed
 $debug = $false # Warning! Only set to true when troubleshooting, this will severly impact the performance.
 
 # Variables to define what groups to query (to check if group already exists)
-$adGroupsSearchOUs = @() # Warning! When no searchOUs are specified. Groups from all ous will be retrieved.
-$adGroupsSearchFilter = "" # Example: "Name -like `"combination group`"" # Warning! When no searchFilter is specified. All groups will be retrieved.
+$adGroupsSearchOUs = @("OU=Groups,OU=Resources,DC=enyoi,DC=org","OU=Groups2,OU=Resources,DC=enyoi,DC=org") # Warning! When no searchOUs are specified. Groups from all ous will be retrieved.
+# Example: $adGroupsSearchOUs = @("OU=Groups,OU=Resources,DC=enyoi,DC=org","OU=Combination Groups,OU=Resources,DC=enyoi,DC=org")
+$adGroupsSearchFilter = "" # Warning! When no searchFilter is specified. All groups will be retrieved.
+# Example: $adGroupsSearchFilter = "Name -like `"combination group`""
 if ([String]::IsNullOrEmpty($adGroupsSearchFilter)) {
     $adGroupsSearchFilter = "*"
 }
