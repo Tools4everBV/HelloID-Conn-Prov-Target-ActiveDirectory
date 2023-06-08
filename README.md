@@ -1,7 +1,8 @@
 # HelloID-Conn-Prov-Target-ActiveDirectory
 <p align="center">
-  <img src="https://github.com/Tools4everBV/HelloID-Conn-Prov-Target-ActiveDirectory/assets/17279802/00925bee-f22a-485a-9d80-d3c1f9b56253">
+  <img src="https://www.tools4ever.nl/connector-logos/activedirectory-logo.png">
 </p>
+<br />
 This is a native connector. This repo is for additional tools specific to Active Directory
 
 ## Table of Contents
