@@ -6,7 +6,7 @@ Het koppelen van een on-premises Active Directory-omgeving en je cloud-gebaseerd
 
 ## Hoe HelloID integreert met Active Directory
 
-De Identity & Access Management-oplossing (IAM-oplossing) HelloID heeft een standaard koppeling met Active Directory. HelloID automatiseert alle beheerprocessen rondom zowel gebruikersaccounts als toegangsrechten in Active Directory. De IAM-oplossing baseert zich hierbij op informatie uit je HR- en planningssysteem. Je hebt dan ook geen omkijken naar het beheer van zowel gebruikers als autorisaties in Active Directory, en weet zeker dat je efficiënt, veilig en compliant werkt. 
+De Identity & Access Management-oplossing (IAM-oplossing) HelloID heeft een standaardkoppeling met Active Directory. HelloID automatiseert alle beheerprocessen rondom zowel gebruikersaccounts als toegangsrechten in Active Directory. De IAM-oplossing baseert zich hierbij op informatie uit je HR- en planningssysteem. Je hebt dan ook geen omkijken naar het beheer van zowel gebruikers als autorisaties in Active Directory, en weet zeker dat je efficiënt, veilig en compliant werkt. 
 
 We doen een greep uit de mogelijkheden die HelloID biedt: 
 
