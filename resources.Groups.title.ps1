@@ -3,6 +3,7 @@
 #
 # Version: 1.1.0
 #####################################################
+$c = $configuration | ConvertFrom-Json
 $rRef = $resourceContext | ConvertFrom-Json
 $success = $false # Set to false at start, at the end, only when no error occurs it is set to true
 
@@ -26,6 +27,11 @@ $correlationValue = "ExternalId" # The HelloID resource property that contains t
 $requiredFields = @("ExternalId", "Name")
 
 #region Supporting Functions
+function Remove-StringLatinCharacters {
+    PARAM ([string]$String)
+    [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($String))
+}
+
 function Get-ADSanitizedGroupName {
     # The names of security principal objects can contain all Unicode characters except the special LDAP characters defined in RFC 2253.
     # This list of special characters includes: a leading space a trailing space and any of the following characters: # , + " \ < > 
@@ -94,16 +100,17 @@ try {
 
     Write-Verbose "Querying AD groups that match the filter [$adGroupsSearchFilter]"
 
-    $properties = @(
+    $properties = [System.Collections.ArrayList]@(
         , "SamAccountName"
         , "Name"
         , "DisplayName"
         , "Description"
         , "GroupCategory"
         , "GroupScope"
-        , "Path"
-        , $correlationProperty
     )
+    if ($correlationProperty -notin $properties) {
+        [void]$properties.Add($correlationProperty)
+    }
 
     $adQuerySplatParams = @{
         Filter     = $adGroupsSearchFilter
@@ -223,8 +230,8 @@ try {
       
             # Best practice to use the id of the resource to avoid max char limitations and issues in case of name change
             $groupName = ("title_" + "$($resource.ExternalId)")
-            # Other example to use name of resource:
-            $groupName = ("title_" + "$($resource.Name)")
+            # # Other example to use name of resource:
+            # $groupName = ("title_" + "$($resource.Name)")
             $groupName = Get-ADSanitizedGroupName -Name $groupName
 
             # Best practice to place the unique identifier that doesn't change (mostly id or code) in the correlationProperty, e.g. description to support name change
@@ -245,7 +252,7 @@ try {
             # Check if group exists
             $currentADGroup = $null
             if ($null -ne $adGroupsGrouped) {
-                $currentADGroup = $adGroupsGrouped["$($ADGroupParams.$correlationValue)"]
+                $currentADGroup = $adGroupsGrouped["$($ADGroupParams.$correlationProperty)"]
             }
 
             # Create new group if group does not exist yet
@@ -254,23 +261,22 @@ try {
                 while actual run has timeout of 10 minutes #>
                 if (-Not($dryRun -eq $True)) {
                     if ($debug -eq $true) {
-                        Write-Information "Debug: Creating group [$($ADGroupParams.DisplayName)] for resource [$($resource | ConvertTo-Json)]"
+                        Write-Information "Debug: Creating group [$($ADGroupParams.Name)] for resource [$($resource | ConvertTo-Json)]"
                         Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)"
                     }
 
                     $NewADGroup = New-ADGroup @ADGroupParams
 
                     $auditLogs.Add([PSCustomObject]@{
-                            Message = "Created group [$($ADGroupParams.DisplayName)] for resource [$($resource | ConvertTo-Json)]"
+                            Message = "Created group [$($ADGroupParams.Name)] for resource [$($resource | ConvertTo-Json)]"
                             Action  = "CreateResource"
                             IsError = $false
                         })
                 }
                 else {
-                    Write-Warning "DryRun: Would create group [$($ADGroupParams.DisplayName)] for resource [$($resource | ConvertTo-Json)]"
+                    Write-Warning "DryRun: Would create group [$($ADGroupParams.Name)] for resource [$($resource | ConvertTo-Json)]"
                     if ($debug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
                 }
-
             }
             else {
                 # Create new group if group does not exist yet
@@ -297,14 +303,14 @@ try {
         
             Write-Verbose "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage)"
         
-            Write-Warning "Failed to create group [$($ADGroupParams.DisplayName)] for resource [$($resource | ConvertTo-Json)]. Error Message: $($errorMessage.AuditErrorMessage)"
+            Write-Warning "Failed to create group [$($ADGroupParams.Name)] for resource [$($resource | ConvertTo-Json)]. Error Message: $($errorMessage.AuditErrorMessage)"
             if ($debug -eq $true) {
                 Write-Information "Debug: Resource: $($resource | ConvertTo-Json)"
                 Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)"
             }
     
             $auditLogs.Add([PSCustomObject]@{
-                    Message = "Failed to create group [$($ADGroupParams.DisplayName)] for resource [$($resource | ConvertTo-Json)]. Error Message: $($errorMessage.AuditErrorMessage)"
+                    Message = "Failed to create group [$($ADGroupParams.Name)] for resource [$($resource | ConvertTo-Json)]. Error Message: $($errorMessage.AuditErrorMessage)"
                     Action  = "CreateResource"
                     IsError = $true
                 })
