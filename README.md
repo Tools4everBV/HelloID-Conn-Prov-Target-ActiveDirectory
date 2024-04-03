@@ -44,7 +44,6 @@ This is a native connector. This repo is for additional tools specific to Active
     - [ ] dynamicPermission.HomeDirectory.ps1
 
 2. Fill in the required fields on the 'Configuration' tab. 
-![image](Assets/config.png)
 
 ## Automation Tasks
 * **Automated Deletion of Accounts**

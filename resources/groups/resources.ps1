@@ -1,5 +1,5 @@
 #####################################################
-# HelloID-Conn-Prov-Target-ActiveDirectory-Resources-Groups-Department
+# HelloID-Conn-Prov-Target-ActiveDirectory-Resources-Groups
 #
 # Version: 1.1.0
 #####################################################
@@ -24,7 +24,8 @@ $correlationProperty = "Description" # The AD group property that contains the u
 $correlationValue = "ExternalId" # The HelloID resource property that contains the unique identifier
 
 # Additionally set resource properties as required
-$requiredFields = @("ExternalId", "DisplayName")
+$requiredFields = @("ExternalId", "Name") # If title is used
+# $requiredFields = @("ExternalId", "DisplayName") # If department is used
 
 #region Supporting Functions
 function Remove-StringLatinCharacters {
@@ -229,9 +230,12 @@ try {
             $path = "OU=Groups,OU=Resources,DC=enyoi,DC=org"   
       
             # Best practice to use the id of the resource to avoid max char limitations and issues in case of name change
-            $groupName = ("department_" + "$($resource.ExternalId)")
+            $groupName = ("title_" + "$($resource.ExternalId)")
             # # Other example to use name of resource:
+            # $groupName = ("department_" + "$($resource.ExternalId)")
+            # $groupName = ("title_" + "$($resource.Name)")
             # $groupName = ("department_" + "$($resource.DisplayName)")
+
             $groupName = Get-ADSanitizedGroupName -Name $groupName
 
             # Best practice to place the unique identifier that doesn't change (mostly id or code) in the correlationProperty, e.g. description to support name change
