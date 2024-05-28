@@ -260,6 +260,7 @@ try {
                 GroupCategory   = "Security"
                 GroupScope      = "Global"
                 Path            = $adGroupsCreateOU
+                Server          = $pdc
             }
 
             # Example when correlationValue is SamAccountName
@@ -271,6 +272,7 @@ try {
             #     GroupCategory  = "Security"
             #     GroupScope     = "Global"
             #     Path           = $adGroupsCreateOU
+            #     Server          = $pdc
             # }
 
             #endregion mapping

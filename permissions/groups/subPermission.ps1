@@ -114,7 +114,7 @@ try {
                     # $adGroupsSearchOU = "OU=Groups,OU=Resources,DC=enyoi,DC=org"
                     # $group = Get-ADGroup -Filter $filter -SearchBase $adGroupsSearchOU
 
-                    $group = Get-ADGroup -Filter $filter
+                    $group = Get-ADGroup -Filter $filter -server $pdc
                     
                     
                     if ($null -eq $group) {
