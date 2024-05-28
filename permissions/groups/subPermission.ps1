@@ -53,11 +53,12 @@ function Get-ADSanitizedGroupName {
         [parameter(Mandatory = $true)][String]$Name
     )
     $newName = $name.trim()
-    $newName = $newName -replace " - ", "_"
+    $newName = $newName -replace " - ", "-"
     $newName = $newName -replace "[`,~,!,#,$,%,^,&,*,(,),+,=,<,>,?,/,',`",,:,\,|,},{,.]", ""
     $newName = $newName -replace "\[", ""
     $newName = $newName -replace "]", ""
-    $newName = $newName -replace " ", "_"
+    $newName = $newName -replace " ", "-"
+    $newName = $newName -replace "--", "-"
     $newName = $newName -replace "\.\.\.\.\.", "."
     $newName = $newName -replace "\.\.\.\.", "."
     $newName = $newName -replace "\.\.\.", "."
