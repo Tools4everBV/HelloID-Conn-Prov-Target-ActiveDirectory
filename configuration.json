@@ -1,5 +1,16 @@
 [
   {
+    "key": "fixedDomainController",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "Fixed domain controller",
+      "placeholder": "DC.enyoi.org",
+      "description": "Only fill in a value if you want to use a fixed domain controller",
+      "required": false
+    }
+  },
+  {
     "key": "isDebug",
     "type": "checkbox",
     "defaultValue": false,

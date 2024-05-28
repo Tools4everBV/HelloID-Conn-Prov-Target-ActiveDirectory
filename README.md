@@ -67,9 +67,10 @@ The field mapping can be imported by using the [_fieldMapping.json_](./fieldMapp
 
 The following settings can be configured.
 
-| Setting | Description                              | Mandatory |
-| ------- | ---------------------------------------- | --------- |
-| Debug   | Creates extra logging for debug purposes |           |
+| Setting                 | Description                                                                     | Mandatory |
+| ----------------------- | ------------------------------------------------------------------------------- | --------- |
+| Fixed domain controller | Optionally fill in a domain controller if a fixed domain controller is required |           |
+| Debug                   | Creates extra logging for debug purposes                                        |           |
 
 ### Prerequisites
 The powershell ActiveDirectory module is required for this target connector.

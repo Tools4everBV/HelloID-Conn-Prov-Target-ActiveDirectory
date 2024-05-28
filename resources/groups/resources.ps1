@@ -93,13 +93,19 @@ function Get-ErrorMessage {
 #region Execute
 
 # Get Primary Domain Controller
-try {
-    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+if ([string]::IsNullOrEmpty($actionContext.Configuration.fixedDomainController)) {
+    try {
+        $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+    }
+    catch {
+        Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
+        Write-Warning "Retrying PDC Lookup"
+        $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+    }
 }
-catch {
-    Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
-    Write-Warning "Retrying PDC Lookup"
-    $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+else {
+    write-verbose "A fixed domain controller is configured [$($actionContext.Configuration.fixedDomainController)]"    
+    $pdc = $($actionContext.Configuration.fixedDomainController)
 }
 
 # Query AD groups
