@@ -1,56 +1,88 @@
+
 # HelloID-Conn-Prov-Target-ActiveDirectory
 
-| :warning: Warning |
-| :---------------- |
-| This readme is not updated. This will be done in combination with the import/export file for powershell V2 |
-
-| :warning: Warning |
-| :---------------- |
-| Not all scripts are converted to powershell V2. Please check the comments in the first 5 rows of the code |
-
-| :warning: Warning |
-| :---------------- |
-| This script is for the new powershell connector. Make sure to use the mapping and correlation keys like mentionded in this readme. For more information, please read our [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html) |
+> [!IMPORTANT]
+> This repository contains the connector and configuration code only. The implementer is responsible to acquire the connection details such as username, password, certificate, etc. You might even need to sign a contract or agreement with the supplier before implementing this connector. Please contact the client's application manager to coordinate the connector requirements.
 
 <p align="center">
-  <img src="https://www.tools4ever.nl/connector-logos/activedirectory-logo.png">
+  <img src="https://github.com/Tools4everBV/HelloID-Conn-Prov-Target-ActiveDirectory/blob/main/Logo.png?raw=true">
 </p>
-<br />
-This is a native connector. This repo is for additional tools specific to Active Directory
 
-## Table of Contents
+## Table of contents
+
 - [HelloID-Conn-Prov-Target-ActiveDirectory](#helloid-conn-prov-target-activedirectory)
-  - [Table of Contents](#table-of-contents)
-  - [Getting Started](#getting-started)
-  - [Setup the PowerShell connector](#setup-the-powershell-connector)
-  - [Automation Tasks](#automation-tasks)
-- [HelloID Docs](#helloid-docs)
+  - [Table of contents](#table-of-contents)
+  - [Introduction](#introduction)
+  - [Getting started](#getting-started)
+    - [Provisioning PowerShell V2 connector](#provisioning-powershell-v2-connector)
+      - [Correlation configuration](#correlation-configuration)
+      - [Field mapping](#field-mapping)
+    - [Connection settings](#connection-settings)
+    - [Prerequisites](#prerequisites)
+  - [Getting help](#getting-help)
+  - [HelloID docs](#helloid-docs)
 
-## Getting Started
-* Create user account 
-* Enable user account
-* Disable user account
-* Delete user account
-* Manage permissions (grant / revoke)
-  * Group Membership
-  * Home Directory creation
+## Introduction
 
+_HelloID-Conn-Prov-Target-ActiveDirectory_ is a _target_ connector. This connector is used to dynamically add Active Directory groups to Active Directory users by assigning subPermissions within HelloID.
 
-## Setup the PowerShell connector
-1. Add a new 'Target System' to HelloID and make sure to import all the necessary files.
+The following lifecycle actions are available:
 
-    - [ ] configuration.json
-    - [ ] create.ps1
-    - [ ] dynamicPermission.HomeDirectory.ps1
+| Action                                | Description                                  |
+| ------------------------------------- | -------------------------------------------- |
+| create.ps1                            | PowerShell _create_ lifecycle action         |
+| permissions/groups/subPermissions.ps1 | PowerShell _subPermissions_ lifecycle action |
+| resources/groups/resources.ps1        | PowerShell _resources_ lifecycle action      |
+| configuration.json                    | Default _configuration.json_                 |
+| fieldMapping.json                     | Default _fieldMapping.json_                  |
 
-2. Fill in the required fields on the 'Configuration' tab. 
+## Getting started
 
-## Automation Tasks
-* **Automated Deletion of Accounts**
-  * This automation will find disabled AD accounts and set a timestamp for when the account should be deleted. The script then evaluates the timestamps in AD and deletes any accounts that are expired.
+### Provisioning PowerShell V2 connector
 
+#### Correlation configuration
 
-_For more information about our HelloID PowerShell connectors, please refer to our general [Documentation](https://docs.helloid.com/hc/en-us/articles/360012557600-Configure-a-custom-PowerShell-source-system) page_
+The correlation configuration is used to specify which properties will be used to match an existing account within _ActiveDirectory_ to a person in _HelloID_.
 
-# HelloID Docs
+To properly setup the correlation:
+
+1. Open the `Correlation` tab.
+
+2. Specify the following configuration:
+
+    | Setting                   | Value            |
+    | ------------------------- | ---------------- |
+    | Enable correlation        | `True`           |
+    | Person correlation field  | ``               |
+    | Account correlation field | `sAMAccountName` |
+
+> [!TIP]
+> _For more information on correlation, please refer to our correlation [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html) pages_.
+
+#### Field mapping
+
+The field mapping can be imported by using the [_fieldMapping.json_](./fieldMapping.json) file.
+
+### Connection settings
+
+The following settings can be configured.
+
+| Setting | Description                              | Mandatory |
+| ------- | ---------------------------------------- | --------- |
+| Debug   | Creates extra logging for debug purposes |           |
+
+### Prerequisites
+The powershell ActiveDirectory module is required for this target connector.
+
+## Getting help
+
+> [!TIP]
+> _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html) pages_.
+
+> [!TIP]
+>  _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com)_.
+
+## HelloID docs
+
 The official HelloID documentation can be found at: https://docs.helloid.com/
+

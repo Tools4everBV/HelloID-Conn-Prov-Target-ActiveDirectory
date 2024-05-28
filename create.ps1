@@ -1,8 +1,7 @@
 #####################################################
-# HelloID-Conn-Prov-Target-ActiveDirectory-Create-Correlate
-#
-# Version: 2.0.0 | new-powershell-connector
-#####################################################
+# HelloID-Conn-Prov-Target-ActiveDirectory-Create
+# PowerShell V2
+#################################################
 
 # Enable TLS1.2
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
