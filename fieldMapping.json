@@ -2,16 +2,16 @@
   "Version": "v1",
   "MappingFields": [
     {
-      "Name": "sAMAccountName",
-      "Description": "",
+      "Name": "employeeId",
+      "Description": "[Mandatory]\nPlease rename the field to the correlation field used in the dependent system. \nMost likely the built-in Microsoft Active Directory target system.",
       "Type": "Text",
       "MappingActions": [
         {
           "MapForActions": [
             "Create"
           ],
-          "MappingMode": "Complex",
-          "Value": "\"function getSamAccountName() {\\r\\n    let sAMAccountName = '';\\r\\n\\r\\n    if (typeof Person.Accounts.MicrosoftActiveDirectory.sAMAccountName !== 'undefined' && Person.Accounts.MicrosoftActiveDirectory.sAMAccountName) {\\r\\n        sAMAccountName = Person.Accounts.MicrosoftActiveDirectory.sAMAccountName;\\r\\n    }\\r\\n\\r\\n    return sAMAccountName;\\r\\n}\\r\\n\\r\\ngetSamAccountName()\"",
+          "MappingMode": "Field",
+          "Value": "\"Person.ExternalId\"",
           "UsedInNotifications": false,
           "StoreInAccountData": false
         }
@@ -19,7 +19,7 @@
     },
     {
       "Name": "SID",
-      "Description": "",
+      "Description": "[Mandatory]",
       "Type": "Text",
       "MappingActions": [
         {

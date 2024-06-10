@@ -28,13 +28,13 @@ _HelloID-Conn-Prov-Target-ActiveDirectory_ is a _target_ connector. This connect
 
 The following lifecycle actions are available:
 
-| Action                                | Description                                  |
-| ------------------------------------- | -------------------------------------------- |
-| create.ps1                            | PowerShell _create_ lifecycle action         |
-| permissions/groups/subPermissions.ps1 | PowerShell _subPermissions_ lifecycle action |
-| resources/groups/resources.ps1        | PowerShell _resources_ lifecycle action      |
-| configuration.json                    | Default _configuration.json_                 |
-| fieldMapping.json                     | Default _fieldMapping.json_                  |
+| Action                                | Description                                                              |
+| ------------------------------------- | ------------------------------------------------------------------------ |
+| create.ps1                            | PowerShell _create_ lifecycle action. This action correlates the account |
+| permissions/groups/subPermissions.ps1 | PowerShell _subPermissions_ lifecycle action                             |
+| resources/groups/resources.ps1        | PowerShell _resources_ lifecycle action                                  |
+| configuration.json                    | Default _configuration.json_                                             |
+| fieldMapping.json                     | Default _fieldMapping.json_                                              |
 
 ## Getting started
 
@@ -44,17 +44,20 @@ The following lifecycle actions are available:
 
 The correlation configuration is used to specify which properties will be used to match an existing account within _ActiveDirectory_ to a person in _HelloID_.
 
+Please rename the field mapping correlation field to the correlation field used in the dependent system. 
+Most likely the built-in Microsoft Active Directory target system.
+
 To properly setup the correlation:
 
 1. Open the `Correlation` tab.
 
 2. Specify the following configuration:
 
-    | Setting                   | Value            |
-    | ------------------------- | ---------------- |
-    | Enable correlation        | `True`           |
-    | Person correlation field  | ``               |
-    | Account correlation field | `sAMAccountName` |
+    | Setting                   | Value                             |
+    | ------------------------- | --------------------------------- |
+    | Enable correlation        | `True`                            |
+    | Person correlation field  | `PersonContext.Person.ExternalId` |
+    | Account correlation field | `employeeId`                      |
 
 > [!TIP]
 > _For more information on correlation, please refer to our correlation [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html) pages_.
