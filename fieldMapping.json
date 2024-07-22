@@ -1,0 +1,38 @@
+{
+  "Version": "v1",
+  "MappingFields": [
+    {
+      "Name": "employeeId",
+      "Description": "[Mandatory]\nPlease rename the field to the correlation field used in the dependent system. \nMost likely the built-in Microsoft Active Directory target system.",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create"
+          ],
+          "MappingMode": "Field",
+          "Value": "\"Person.ExternalId\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": false
+        }
+      ]
+    },
+    {
+      "Name": "SID",
+      "Description": "[Mandatory]",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create"
+          ],
+          "MappingMode": "None",
+          "Value": "\"\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
+        }
+      ]
+    }
+  ],
+  "UniqueFieldNames": []
+}

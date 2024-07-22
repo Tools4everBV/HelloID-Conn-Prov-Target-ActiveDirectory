@@ -1,95 +1,23 @@
 [
   {
-    "key": "defaultDomain",
-    "type": "input",
-    "defaultValue": "MyDomain.local",
-    "templateOptions": {
-      "label": "Default Domain",
-      "required": true
-    }
-  },
-  {
-    "key": "correlationPersonField",
-    "type": "input",
-    "defaultValue": "ExternalId",
-    "templateOptions": {
-      "label": "Person Correlation Field",
-      "required": true
-    }
-  },
-  {
-    "key": "correlationAccountField",
-    "type": "input",
-    "defaultValue": "employeeID",
-    "templateOptions": {
-      "label": "Account Correlation Field",
-      "required": true
-    }
-  },
-  {
-    "key": "exch_uri",
+    "key": "fixedDomainController",
     "type": "input",
     "defaultValue": "",
     "templateOptions": {
-      "label": "Exchange URI",
-      "placeholder": "http://<ExchServer>/PowerShell/",
-      "description": "PowerShell Endpoint on Exchange Server",
-      "required": true
+      "label": "Fixed domain controller",
+      "placeholder": "DC.enyoi.org",
+      "description": "Only fill in a value if you want to use a fixed domain controller",
+      "required": false
     }
   },
   {
-    "key": "exch_username",
-    "type": "input",
-    "defaultValue": "",
+    "key": "isDebug",
+    "type": "checkbox",
+    "defaultValue": false,
     "templateOptions": {
-      "label": "Exchange Username",
-      "placeholder": "",
-      "description": "AD Username with Organizational Management role",
-      "required": true
-    }
-  },
-  {
-    "key": "exch_password",
-    "type": "input",
-    "defaultValue": "",
-    "templateOptions": {
-      "label": "Exchange Password",
-      "type": "password",
-      "placeholder": "Please enter a password",
-      "required": true
-    }
-  },
-  {
-    "key": "onmicrosoft_domain",
-    "type": "input",
-    "defaultValue": "",
-    "templateOptions": {
-      "label": "OnMicrosoft Domain",
-      "placeholder": "<org>.mail.onmicrosoft.com",
-      "description": "OnMicrosoft domain used in Routing Address",
-      "required": true
-    }
-  },
-  {
-    "key": "exch_online_username",
-    "type": "input",
-    "defaultValue": "",
-    "templateOptions": {
-      "label": "Exchange Online Username",
-      "placeholder": "HelloIDSvc@domain.com",
-      "description": "O365 Username with Exchange Admin and RemotePowerShellEnabled",
-      "required": true
-    }
-  },
-  {
-    "key": "exch_online_password",
-    "type": "input",
-    "defaultValue": "",
-    "templateOptions": {
-      "label": "Exchange Online Password",
-      "type": "password",
-      "placeholder": "Please enter a password",
-      "required": true
+      "label": "Toggle debug logging",
+      "description": "When toggled, debug logging will be displayed",
+      "required": false
     }
   }
 ]
