@@ -31,7 +31,7 @@ if (-Not($dryRun -eq $true)) {
         $previousAccount = Get-ADUser -Identity $account.Identity -Properties $properties -Server $eRef.domainController.Name | Select-Object $properties
 
         Write-Verbose "Updating AD account $($account.Identity). Previous msExchHideFromAddressLists: $($previousAccount.msExchHideFromAddressLists). New msExchHideFromAddressLists: '$($account.msExchHideFromAddressLists)'"
-        $updateUser = Set-ADUser -Identity $account.Identity -Replace @{msExchHideFromAddressLists = $account.msExchHideFromAddressLists } -ErrorAction Stop
+        $updateUser = Set-ADUser -Identity $account.Identity -Replace @{msExchHideFromAddressLists = $account.msExchHideFromAddressLists } -Server $eRef.domainController.Name -ErrorAction Stop
         Write-Information "Succesfully updated AD account $($account.Identity). Previous msExchHideFromAddressLists: '$($previousAccount.msExchHideFromAddressLists)'. New msExchHideFromAddressLists: '$($account.msExchHideFromAddressLists)'"
 
         $success = $true
