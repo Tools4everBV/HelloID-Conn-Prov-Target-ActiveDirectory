@@ -124,6 +124,7 @@ try {
         , "GroupCategory"
         , "GroupScope"
         , "extensionAttribute1"
+        , "objectguid"
     )
     if ($correlationProperty -notin $properties) {
         [void]$properties.Add($correlationProperty)
@@ -244,7 +245,8 @@ try {
             # https://www.ietf.org/rfc/rfc2253.txt
 
             # Best practice to use the id of the resource to avoid max char limitations and issues in case of name change
-            $groupName = ("title_" + "$($resource.ExternalId)")
+            $samaccountname = ("title_" + "$($resource.ExternalId)")
+            $groupName = $resource.Name
             # # Other example to use name of resource:
             # $groupName = ("department_" + "$($resource.ExternalId)")
             # $groupName = ("title_" + "$($resource.Name)")
@@ -258,7 +260,7 @@ try {
 
             # Example when correlationValue is extensionAttribute1
             $ADGroupParams = @{
-                SamAccountName  = $groupName
+                SamAccountName  = $samaccountname
                 Name            = $groupName
                 DisplayName     = $groupName
                 OtherAttributes = @{'extensionAttribute1' = "$correlationValueOutput" }
@@ -314,21 +316,55 @@ try {
                 }
             }
             else {
-                # Create new group if group does not exist yet
-                if (-Not($actionContext.DryRun -eq $True)) {
-                    if ($actionContext.Configuration.isDebug -eq $true) {
-                        Write-Information "Debug: Group where [$($correlationProperty)] = [$($correlationValue)] already exists"
+                if($actionContext.Configuration.renameResources -and ($currentADGroup.Name -ne $groupName -or $currentADGroup.DisplayName -ne $groupName))
+                {
+                    if (-Not($actionContext.DryRun -eq $True)) {
+                        
+                        Write-Information "Debug: Group where [$($correlationProperty)] = [$($correlationValue)] already exists, but will be renamed"
+
+                        $SetADGroupParams = @{
+                            Identity        = $currentADGroup.objectguid
+                            DisplayName     = $groupName
+                            Server          = $pdc
+                        }
+                        $null = Set-AdGroup @SetADGroupParams
+
+                        $RenameADGroupParams = @{
+                            Identity        = $currentADGroup.objectguid
+                            NewName         = $groupName
+                            Server          = $pdc
+                        }
+                        $null = Rename-ADObject @RenameADGroupParams
 
                         $outputContext.AuditLogs.Add([PSCustomObject]@{
-                                Message = "Skipped creating group $($correlationProperty)] = [$($correlationValue)] for resource [$($resource | ConvertTo-Json)]. (Already exists)"
+                                Message = "Renaming group [$($correlationProperty)] = [$($correlationValue)] for resource [$($resource | ConvertTo-Json)]."
                                 Action  = "CreateResource"
                                 IsError = $false
                             })
                     }
+                    else {
+                        Write-Warning "DryRun: Group [$($correlationProperty)] = [$($correlationValue)] for resource [$($resource | ConvertTo-Json)] already exists but will be renamed"
+                        if ($actionContext.Configuration.isDebug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
+                    }
                 }
-                else {
-                    Write-Warning "DryRun: Group $($correlationProperty)] = [$($correlationValue)] for resource [$($resource | ConvertTo-Json)] already exists"
-                    if ($actionContext.Configuration.isDebug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
+                else
+                {
+                    # Create new group if group does not exist yet
+                    if (-Not($actionContext.DryRun -eq $True)) {
+                        if ($actionContext.Configuration.isDebug -eq $true) {
+                            Write-Information "Debug: Group where [$($correlationProperty)] = [$($correlationValue)] already exists"
+
+                            $outputContext.AuditLogs.Add([PSCustomObject]@{
+                                    Message = "Skipped creating group [$($correlationProperty)] = [$($correlationValue)] for resource [$($resource | ConvertTo-Json)]. (Already exists)"
+                                    Action  = "CreateResource"
+                                    IsError = $false
+                                })
+                        }
+                    }
+                    else {
+                        Write-Warning "DryRun: Group $($correlationProperty)] = [$($correlationValue)] for resource [$($resource | ConvertTo-Json)] already exists"
+                        if ($actionContext.Configuration.isDebug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
+                    }
                 }
             }
         }
