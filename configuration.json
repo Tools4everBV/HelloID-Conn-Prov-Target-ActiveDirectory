@@ -11,6 +11,16 @@
     }
   },
   {
+    "key": "renameResources",
+    "type": "checkbox",
+    "defaultValue": false,
+    "templateOptions": {
+      "label": "Rename resources",
+      "description": "When toggled, resources will be renamed",
+      "required": false
+    }
+  },
+  {
     "key": "isDebug",
     "type": "checkbox",
     "defaultValue": false,
