@@ -316,29 +316,28 @@ try {
             }
             elseif (($currentADGroup | Measure-Object).count -gt 1) {
                 $outputContext.AuditLogs.Add([PSCustomObject]@{
-                    Message = "Multiple groups found where [$($correlationProperty)] = [$($correlationValueOutput)] for resource [$($resource | ConvertTo-Json)]."
-                    Action  = "CreateResource"
-                    IsError = $true
-                })
+                        Message = "Multiple groups found where [$($correlationProperty)] = [$($correlationValueOutput)] for resource [$($resource | ConvertTo-Json)]."
+                        Action  = "CreateResource"
+                        IsError = $true
+                    })
             }
-            else{
-                if($actionContext.Configuration.renameResources -and ($currentADGroup.Name -ne $groupName -or $currentADGroup.DisplayName -ne $groupName))
-                {
+            else {
+                if ($actionContext.Configuration.renameResources -and ($currentADGroup.Name -ne $groupName -or $currentADGroup.DisplayName -ne $groupName)) {
                     if (-Not($actionContext.DryRun -eq $True)) {
                         
-                        if ($actionContext.Configuration.isDebug -eq $true) { Write-Information "Debug: Group where [$($correlationProperty)] = [$($correlationValueOutput)] already exists, but will be renamed"}
+                        if ($actionContext.Configuration.isDebug -eq $true) { Write-Information "Debug: Group where [$($correlationProperty)] = [$($correlationValueOutput)] already exists, but will be renamed" }
 
                         $SetADGroupParams = @{
-                            Identity        = $currentADGroup.objectguid
-                            DisplayName     = $groupName
-                            Server          = $pdc
+                            Identity    = $currentADGroup.objectguid
+                            DisplayName = $groupName
+                            Server      = $pdc
                         }
                         $null = Set-AdGroup @SetADGroupParams
 
                         $RenameADGroupParams = @{
-                            Identity        = $currentADGroup.objectguid
-                            NewName         = $groupName
-                            Server          = $pdc
+                            Identity = $currentADGroup.objectguid
+                            NewName  = $groupName
+                            Server   = $pdc
                         }
                         $null = Rename-ADObject @RenameADGroupParams
 
@@ -353,8 +352,7 @@ try {
                         if ($actionContext.Configuration.isDebug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
                     }
                 }
-                else
-                {
+                else {
                     # Create new group if group does not exist yet
                     if (-Not($actionContext.DryRun -eq $True)) {
                         if ($actionContext.Configuration.isDebug -eq $true) {
