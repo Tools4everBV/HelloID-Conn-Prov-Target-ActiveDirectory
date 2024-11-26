@@ -108,7 +108,7 @@ try {
                 Write-Verbose ("Contract in condition: {0}" -f $contract.Context.InConditions)
                 if ($contract.Context.InConditions -OR ($actionContext.DryRun -eq $true)) {
                     # Correlation values
-                    $correlationProperty = "DisplayName" # The AD group property that contains the unique identifier (DisplayName | sAMAccountname | Description)
+                    $correlationProperty = "ExtensionAttribute1" # The AD group property that contains the unique identifier (DisplayName | sAMAccountname | Description)
                     $correlationValue = $contract.Department.ExternalId # The HelloID resource property that contains the unique identifier                    
 
                     $correlationValue = Get-ADSanitizedGroupName -Name $correlationValue
