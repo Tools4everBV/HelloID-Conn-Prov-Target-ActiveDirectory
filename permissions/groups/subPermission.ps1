@@ -111,7 +111,8 @@ try {
                     $correlationProperty = "ExtensionAttribute1" # The AD group property that contains the unique identifier (DisplayName | sAMAccountname | Description)
                     $correlationValue = $contract.Department.ExternalId # The HelloID resource property that contains the unique identifier                    
 
-                    $correlationValue = Get-ADSanitizedGroupName -Name $correlationValue
+                    # Use the Get-ADSanitizedGroupName function if data manipulation is needed. For example, when using a name instead of a code or when you also use this function in the resource script
+                    # $correlationValue = Get-ADSanitizedGroupName -Name $correlationValue
 
                     # Get group to use objectGuid to support name change and even correlationProperty change
                     $group = $null
