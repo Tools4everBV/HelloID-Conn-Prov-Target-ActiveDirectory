@@ -23,8 +23,8 @@ $correlationProperty = "ExtensionAttribute1" # The AD group property that contai
 $correlationValue = "ExternalId" # The HelloID resource property that contains the unique identifier
 
 # Additionally set resource properties as required
-$requiredFields = @("ExternalId", "Name", "Code") # If title is used
-# $requiredFields = @("ExternalId", "DisplayName") # If department is used
+$requiredFields = @("ExternalId", "DisplayName") # If department is used
+# $requiredFields = @("ExternalId", "Name", "Code") # If title is used
 
 $resourceData = $resourceContext.SourceData 
 # Example below for when the externalID is a combination of values
@@ -33,7 +33,8 @@ $resourceData = $resourceContext.SourceData
 #     $_.ExternalId = $_.Code + "_" + $_.DepartmentCode
 # }
 
-$resourceData = $resourceData | Select-Object -Unique   ExternalId, Name, Code #, DepartmentCode
+$resourceData = $resourceData | Select-Object -Unique ExternalId, DisplayName # If department is used
+# $resourceData = $resourceData | Select-Object -Unique ExternalId, Name, Code # If title is used
 
 #region Supporting Functions
 function Remove-StringLatinCharacters {
@@ -245,8 +246,7 @@ try {
             # https://www.ietf.org/rfc/rfc2253.txt
 
             # Best practice to use the id of the resource to avoid max char limitations and issues in case of name change
-            $samaccountname = ("title_" + "$($resource.ExternalId)")
-            $groupName = $resource.Name
+            $groupName = $resource.DisplayName
             # # Other example to use name of resource:
             # $groupName = ("department_" + "$($resource.ExternalId)")
             # $groupName = ("title_" + "$($resource.Name)")
@@ -260,7 +260,7 @@ try {
 
             # Example when correlationValue is extensionAttribute1
             $ADGroupParams = @{
-                SamAccountName  = $samaccountname
+                SamAccountName  = $groupName
                 Name            = $groupName
                 DisplayName     = $groupName
                 OtherAttributes = @{'extensionAttribute1' = "$correlationValueOutput" }
@@ -315,29 +315,35 @@ try {
                     if ($actionContext.Configuration.isDebug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
                 }
             }
+            elseif (($currentADGroup | Measure-Object).count -gt 1) {
+                $outputContext.AuditLogs.Add([PSCustomObject]@{
+                        Message = "Multiple groups found where [$($correlationProperty)] = [$($correlationValueOutput)] for resource [$($resource | ConvertTo-Json)]."
+                        Action  = "CreateResource"
+                        IsError = $true
+                    })
+            }
             else {
-                if($actionContext.Configuration.renameResources -and ($currentADGroup.Name -ne $groupName -or $currentADGroup.DisplayName -ne $groupName))
-                {
+                if ($actionContext.Configuration.renameResources -and ($currentADGroup.Name -ne $groupName -or $currentADGroup.DisplayName -ne $groupName)) {
                     if (-Not($actionContext.DryRun -eq $True)) {
                         
-                        Write-Information "Debug: Group where [$($correlationProperty)] = [$($correlationValue)] already exists, but will be renamed"
+                        if ($actionContext.Configuration.isDebug -eq $true) { Write-Information "Debug: Group where [$($correlationProperty)] = [$($correlationValueOutput)] already exists, but will be renamed" }
 
                         $SetADGroupParams = @{
-                            Identity        = $currentADGroup.objectguid
-                            DisplayName     = $groupName
-                            Server          = $pdc
+                            Identity    = $currentADGroup.objectguid
+                            DisplayName = $groupName
+                            Server      = $pdc
                         }
                         $null = Set-AdGroup @SetADGroupParams
 
                         $RenameADGroupParams = @{
-                            Identity        = $currentADGroup.objectguid
-                            NewName         = $groupName
-                            Server          = $pdc
+                            Identity = $currentADGroup.objectguid
+                            NewName  = $groupName
+                            Server   = $pdc
                         }
                         $null = Rename-ADObject @RenameADGroupParams
 
                         $outputContext.AuditLogs.Add([PSCustomObject]@{
-                                Message = "Renaming group [$($correlationProperty)] = [$($correlationValue)] for resource [$($resource | ConvertTo-Json)]."
+                                Message = "Renaming group [$($correlationProperty)] = [$($correlationValueOutput)] for resource [$($resource | ConvertTo-Json)]."
                                 Action  = "CreateResource"
                                 IsError = $false
                             })
@@ -347,8 +353,7 @@ try {
                         if ($actionContext.Configuration.isDebug -eq $true) { Write-Information "Debug: Group parameters: $($ADGroupParams | ConvertTo-Json)" }
                     }
                 }
-                else
-                {
+                else {
                     # Create new group if group does not exist yet
                     if (-Not($actionContext.DryRun -eq $True)) {
                         if ($actionContext.Configuration.isDebug -eq $true) {
