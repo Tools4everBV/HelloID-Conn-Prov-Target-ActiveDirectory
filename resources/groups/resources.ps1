@@ -33,7 +33,8 @@ $resourceData = $resourceContext.SourceData
 #     $_.ExternalId = $_.Code + "_" + $_.DepartmentCode
 # }
 
-$resourceData = $resourceData | Select-Object -Unique   ExternalId, Name, Code #, DepartmentCode
+$resourceData = $resourceData | Select-Object -Unique ExternalId, DisplayName # If department is used
+# $resourceData = $resourceData | Select-Object -Unique ExternalId, Name, Code # If title is used
 
 #region Supporting Functions
 function Remove-StringLatinCharacters {
