@@ -58,14 +58,20 @@ $fieldsToCheck = [PSCustomObject]@{
 #endregion Fields to check
 
 try {
-    if ($o.ToLower() -ne "create") {
-        #region Verify account reference
-        $actionMessage = "verifying account reference"
-    
-        if ([string]::IsNullOrEmpty($($aRef))) {
-            throw "The account reference could not be found"
+    if (-Not($actionContext.DryRun -eq $true)) {
+        Write-Warning "DryRun: No account reference available. Unable to check if person is using value themselves."
+        
+    }
+    else {
+        if ($o.ToLower() -ne "create") {
+            #region Verify account reference
+            $actionMessage = "verifying account reference"
+        
+            if ([string]::IsNullOrEmpty($($aRef))) {
+                throw "The account reference could not be found"
+            }
+            #endregion Verify account reference
         }
-        #endregion Verify account reference
     }
     
     foreach ($fieldToCheck in $fieldsToCheck.PsObject.Properties | Where-Object { -not[String]::IsNullOrEmpty($_.Value.accountValue) }) {       
@@ -121,11 +127,11 @@ try {
         #region Check property uniqueness
         $actionMessage = "checking if property [$($fieldToCheck.Name)] with value [$($fieldToCheck.Value.accountValue)] is unique"
         if (@($correlatedAccount).count -gt 0) {
-            if ($o.ToLower() -ne "create" -and $correlatedAccount.id -eq $aRef) {
+            if ($o.ToLower() -ne "create" -and $correlatedAccount.ObjectGUID -eq $aRef.ObjectGuid) {
                 Write-Information "Person is using property [$($fieldToCheck.Name)] with value [$($fieldToCheck.Value.accountValue)] themselves."
             }
             else {
-                Write-Information "Property [$($fieldToCheck.Name)] with value [$($fieldToCheck.Value.accountValue)] is not unique. In use by account with ID: $($correlatedAccount.id)"
+                Write-Information "Property [$($fieldToCheck.Name)] with value [$($fieldToCheck.Value.accountValue)] is not unique. In use by account with ObjectGUID: $($correlatedAccount.ObjectGUID)"
                 [void]$nonUniqueFields.Add($fieldToCheck.Name)
                 if (@($fieldToCheck.Value.keepInSyncWith).Count -ge 1) {
                     foreach ($fieldToKeepInSyncWith in $fieldToCheck.Value.keepInSyncWith | Where-Object { $_ -in $a.PsObject.Properties.Name }) {
