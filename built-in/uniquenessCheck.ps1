@@ -58,9 +58,8 @@ $fieldsToCheck = [PSCustomObject]@{
 #endregion Fields to check
 
 try {
-    if (-Not($actionContext.DryRun -eq $true)) {
+    if ($dryRun -eq $true) {
         Write-Warning "DryRun: No account reference available. Unable to check if person is using value themselves."
-        
     }
     else {
         if ($o.ToLower() -ne "create") {
