@@ -10,7 +10,8 @@ This folder contains PowerShell scripts used in the built-in Microsoft Active Di
 - **Description:** Checks if key user attributes like `sAMAccountName`, `userPrincipalName`, `mail`, and `proxyAddresses` are unique in Active Directory.
 - **Use Case:** Use when HelloID's default uniqueness check isn't flexible enough—for example, when you want to sync `sAMAccountName` and `cn` separately from `mail` and `UPN`.
 
-> **Note:** The built-in uniqueness check should not be used together with this script. You must choose one or the other. If you opt to use this script, make sure to deselect all the fields from the "unique fields" section that you want to check with the script.  
+> [!NOTE]
+> The built-in uniqueness check should not be used together with this script. You must choose one or the other. If you opt to use this script, make sure to deselect all the fields from the "unique fields" section that you want to check with the script.  
 >  
 > While it’s technically possible to use both, for example, by selecting `userPrincipalName`, `mail`, and `proxyAddresses` for the built-in check and using this script for `commonName` and `sAMAccountName`, it's recommended to use only one method. This ensures greater clarity and simplicity in your configuration.
 
