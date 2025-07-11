@@ -1,5 +1,5 @@
 #####################################################
-# HelloID-Conn-Prov-Target-ActiveDirectory-subPermissions-Groups
+# HelloID-Conn-Prov-Target-ActiveDirectory-SubPermissions-Groups
 # PowerShell V2
 #################################################
 

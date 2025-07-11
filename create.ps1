@@ -11,13 +11,6 @@ $outputContext.Success = $false
 
 # AccountReference must have a value for dryRun
 $outputContext.AccountReference = "Unknown"
-
-# Set debug logging
-switch ($($actionContext.Configuration.isDebug)) {
-    $true { $VerbosePreference = 'Continue' }
-    $false { $VerbosePreference = 'SilentlyContinue' }
-}
-
 $account = $actionContext.Data
 
 try {
@@ -57,7 +50,7 @@ try {
         }
     }
     else {
-        Write-Verbose "A fixed domain controller is configured [$($actionContext.Configuration.fixedDomainController)]"    
+        Write-Information "A fixed domain controller is configured [$($actionContext.Configuration.fixedDomainController)]"    
         $pdc = $($actionContext.Configuration.fixedDomainController)
     }
     #endregion Get Primary Domain Controller
@@ -67,7 +60,7 @@ try {
     
     $user = Get-ADUser -Filter "$correlationField -eq '$correlationValue'" -Server $pdc -ErrorAction Stop
 
-    Write-Verbose "Queried Microsoft Active Directory account where [$($correlationField)] = [$($correlationValue)]. Result: $($user | ConvertTo-Json)"
+    Write-Information "Queried Microsoft Active Directory account where [$($correlationField)] = [$($correlationValue)]. Result: $($user | ConvertTo-Json)"
     #endregion Get Microsoft Active Directory account
 
     #region Calulate action

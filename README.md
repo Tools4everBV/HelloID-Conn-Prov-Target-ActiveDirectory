@@ -1,4 +1,3 @@
-
 # HelloID-Conn-Prov-Target-ActiveDirectory
 
 > [!IMPORTANT]
@@ -13,6 +12,7 @@
 - [HelloID-Conn-Prov-Target-ActiveDirectory](#helloid-conn-prov-target-activedirectory)
   - [Table of contents](#table-of-contents)
   - [Introduction](#introduction)
+  - [Supported  features](#supported--features)
   - [Getting started](#getting-started)
     - [HelloID Icon URL](#helloid-icon-url)
     - [Provisioning PowerShell V2 connector](#provisioning-powershell-v2-connector)
@@ -27,15 +27,18 @@
 
 _HelloID-Conn-Prov-Target-ActiveDirectory_ is a _target_ connector. This connector is used to dynamically add Active Directory groups to Active Directory users by assigning subPermissions within HelloID.
 
-The following lifecycle actions are available:
+## Supported  features
 
-| Action                                | Description                                                              |
-| ------------------------------------- | ------------------------------------------------------------------------ |
-| create.ps1                            | PowerShell _create_ lifecycle action. This action correlates the account |
-| permissions/groups/subPermissions.ps1 | PowerShell _subPermissions_ lifecycle action                             |
-| resources/groups/resources.ps1        | PowerShell _resources_ lifecycle action                                  |
-| configuration.json                    | Default _configuration.json_                                             |
-| fieldMapping.json                     | Default _fieldMapping.json_                                              |
+The following features are available:
+
+| Feature                                   | Supported | Actions                 | Remarks                               |
+| ----------------------------------------- | --------- | ----------------------- | ------------------------------------- |
+| **Account Lifecycle**                     | ✅         | Correlate               |                                       |
+| **Permissions**                           | ✅         | Retrieve, Grant, Revoke | Only sub-permissions                  |
+| **Resources**                             | ✅         | Create, Update          |                                       |
+| **Entitlement Import: Accounts**          | ✅         | -                       | Only for correlation                  |
+| **Entitlement Import: Permissions**       | ✅         | -                       | Only sub-permissions                  |
+| **Governance Reconciliation Resolutions** | ✅         | -                       | No actions because of sub-permissions |
 
 ## Getting started
 
