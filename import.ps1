@@ -60,7 +60,7 @@ try {
             AccountReference = $account.SID
             DisplayName      = $account.Name
             UserName         = $account.UserPrincipalName
-            Enabled          = $account.Enabled 
+            Enabled          = $false # No account access is granted, this should be false for the report. $account.Enabled 
             Data             = $account
         }
     }
