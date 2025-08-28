@@ -31,14 +31,14 @@ _HelloID-Conn-Prov-Target-ActiveDirectory_ is a _target_ connector. This connect
 
 The following features are available:
 
-| Feature                                   | Supported | Actions                 | Remarks                               |
-| ----------------------------------------- | --------- | ----------------------- | ------------------------------------- |
-| **Account Lifecycle**                     | ✅         | Correlate               |                                       |
-| **Permissions**                           | ✅         | Retrieve, Grant, Revoke | Only sub-permissions                  |
-| **Resources**                             | ✅         | Create, Update          |                                       |
-| **Entitlement Import: Accounts**          | ✅         | -                       | Only for correlation                  |
-| **Entitlement Import: Permissions**       | ✅         | -                       | Only sub-permissions                  |
-| **Governance Reconciliation Resolutions** | ✅         | -                       | No actions because of sub-permissions |
+| Feature                                   | Supported | Actions                 | Remarks                                  |
+| ----------------------------------------- | --------- | ----------------------- | ---------------------------------------- |
+| **Account Lifecycle**                     | ✅         | Correlate               |                                          |
+| **Permissions**                           | ✅         | Retrieve, Grant, Revoke | Only sub-permissions                     |
+| **Resources**                             | ✅         | Create, Update          |                                          |
+| **Entitlement Import: Accounts**          | ✅         | -                       | Only for correlation                     |
+| **Entitlement Import: Permissions**       | ✅         | -                       | Only sub-permissions                     |
+| **Governance Reconciliation Resolutions** | ✅         | -                       | No actions possible with sub-permissions |
 
 ## Getting started
 
