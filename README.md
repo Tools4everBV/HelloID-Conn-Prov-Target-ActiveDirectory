@@ -38,7 +38,7 @@ The following features are available:
 | **Resources**                             | ✅         | Create, Update          |                                          |
 | **Entitlement Import: Accounts**          | ✅         | -                       | Only for correlation                     |
 | **Entitlement Import: Permissions**       | ✅         | -                       | Only sub-permissions                     |
-| **Governance Reconciliation Resolutions** | ✅         | -                       | No actions possible with sub-permissions |
+| **Governance Reconciliation Resolutions** | ❌         | -                       | No actions possible with sub-permissions |
 
 ## Getting started
 

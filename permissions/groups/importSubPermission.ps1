@@ -9,7 +9,7 @@
 try {
     Write-Information 'Starting target sub-permissions import '
    
-    # Configure, must be the same as the values used in retreive permissions
+    # Configure, must be the same as the values used in retrieve permissions
     $permissionReference = 'dep'
     $permissionDisplayName = 'Department'
 
