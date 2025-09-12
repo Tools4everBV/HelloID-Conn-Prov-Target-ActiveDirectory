@@ -13,13 +13,21 @@ try {
     $permissionReference = 'dep'
     $permissionDisplayName = 'Department'
 
-    $filter = "Description -like 'department*'"
+    $filterGroups = "Description -like 'department*'"
+    # $filterGroups = "extensionAttribute2 -eq 'HelloIDdepartment'"
     # If all groups needs to be queried
-    # $filter = '*'
+    # $filterGroups = '*'
 
-    # $searchOUs = @("OU=HelloID,OU=Security Groups,DC=enyoi,DC=org","OU=HelloID,OU=Other Groups,DC=enyoi,DC=org")
-    # If all OUs needs to be queried
-    $searchOUs = @("")
+    # $searchGroupOUs = @("OU=HelloID,OU=Security Groups,DC=enyoi,DC=org","OU=HelloID,OU=Other Groups,DC=enyoi,DC=org")
+    # If all groups needs to be queried
+    $searchGroupOUs = @("")
+
+    # If all users needs to be queried
+    $filterUsers = '*'
+
+    # $searchUserOUs = @("OU=HelloID,OU=Employee Users,DC=enyoi,DC=org","OU=HelloID,OU=Other Users,DC=enyoi,DC=org")
+    # If all users needs to be queried
+    $searchUserOUs = @("")
 
     $actionMessage = "getting primary domain controller"
     if ([string]::IsNullOrEmpty($actionContext.Configuration.fixedDomainController)) {
@@ -38,36 +46,59 @@ try {
     }  
     
     $actionMessage = "querying groups"
-    $properties = @('ObjectGUID', 'Name')
+    $properties = @('ObjectGUID', 'Name', 'member')
     $getADGroupsSplatParams = @{
-        Filter      = $filter
-        Properties  = $properties
-        Server      = $pdc
-        ErrorAction = 'Stop'
+        Filter        = $filterGroups
+        Properties    = $properties
+        ResultSetSize = $null
+        Server        = $pdc
+        ErrorAction   = 'Stop'
     }
-    if ([String]::IsNullOrEmpty($searchOUs)) {
-        Write-Information "Querying AD groups that match filter [$($filter)]"
+
+    if ([String]::IsNullOrEmpty($searchGroupOUs)) {
+        Write-Information "Querying AD groups that match filter [$($filterGroups)]"
         $groups = Get-ADGroup @getADGroupsSplatParams | Select-Object $properties
     }
     else {
-        $groups = foreach ($searchOU in $searchOUs) {
-            Write-Information "Querying AD groups that match filter [$($filter)] in OU [$($searchOU)]"
-            Get-ADGroup @getADGroupsSplatParams -SearchBase $searchOU | Select-Object $properties
+        $groups = foreach ($searchGroupOU in $searchGroupOUs) {
+            Write-Information "Querying AD groups that match filter [$($filterGroups)] in OU [$($searchGroupOU)]"
+            Get-ADGroup @getADGroupsSplatParams -SearchBase $searchGroupOU | Select-Object $properties
         }
     }
     Write-Information "Successfully queried [$($groups.count)] existing groups"
 
+    $actionMessage = "querying users"
+    $properties = @('DistinguishedName', 'ObjectSid')
+    $getADUsersSplatParams = @{
+        Filter        = $filterUsers
+        Properties    = $properties
+        ResultSetSize = $null
+        Server        = $pdc
+        ErrorAction   = 'Stop'
+    }
+
+    if ([String]::IsNullOrEmpty($searchUserOUs)) {
+        Write-Information "Querying AD users that match filter [$($filterUsers)]"
+        $users = Get-ADUser @getADUsersSplatParams | Select-Object $properties
+    }
+    else {
+        $users = foreach ($searchUserOU in $searchUserOUs) {
+            Write-Information "Querying AD users that match filter [$($filterUsers)] in OU [$($searchUserOU)]"
+            Get-ADUser @getADUsersSplatParams -SearchBase $searchUserOU | Select-Object $properties
+        }
+    }
+    $usersGrouped = $users | Group-Object -Property DistinguishedName -AsString -AsHashTable
+    Write-Information "Successfully queried [$($users.count)] existing users"
+
     $actionMessage = "returning data to HelloID"
     foreach ($group in $groups) {
         $groupMembers = @()
-        $getADGroupMembersSplatParams = @{
-            Identity    = $group.ObjectGUID
-            Recursive   = $true
-            Server      = $pdc
-            ErrorAction = 'Stop'
+        foreach ($groupMember in $group.member) {
+            $groupMemberSID = $usersGrouped[$groupMember].ObjectSid.Value
+            if (-not([string]::IsNullOrEmpty($groupMemberSID))) { 
+                $groupMembers += $groupMemberSID
+            }
         }
-        $members = Get-ADGroupMember @getADGroupMembersSplatParams
-        $groupMembers += $members.SID.Value
         $numberOfAccounts = $(($groupMembers | Measure-Object).Count)   
 
         if (-not([string]::IsNullOrEmpty($group.Name))) {
@@ -81,7 +112,7 @@ try {
             PermissionReference      = @{
                 Reference = $permissionReference
             }       
-            DisplayName              = "Permission - $permissionDisplayName"
+            DisplayName              = $permissionDisplayName
             SubPermissionReference   = @{
                 Id = $group.ObjectGUID
             }
