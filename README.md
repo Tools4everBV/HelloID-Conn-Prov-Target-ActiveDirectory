@@ -20,6 +20,7 @@
       - [Field mapping](#field-mapping)
     - [Connection settings](#connection-settings)
     - [Prerequisites](#prerequisites)
+  - [Built-in scripts](#built-in-scripts)
   - [Getting help](#getting-help)
   - [HelloID docs](#helloid-docs)
 
@@ -33,7 +34,7 @@ The following features are available:
 
 | Feature                                   | Supported | Actions                 | Remarks                                  |
 | ----------------------------------------- | --------- | ----------------------- | ---------------------------------------- |
-| **Account Lifecycle**                     | ✅         | Correlate               |                                          |
+| **Account Lifecycle**                     | ✅⚠️        | Correlate               | Correlate only                           |
 | **Permissions**                           | ✅         | Retrieve, Grant, Revoke | Only sub-permissions                     |
 | **Resources**                             | ✅         | Create, Update          |                                          |
 | **Entitlement Import: Accounts**          | ✅         | -                       | Only for correlation                     |
@@ -83,18 +84,19 @@ The following settings can be configured.
 | Setting                 | Description                                                                     | Mandatory |
 | ----------------------- | ------------------------------------------------------------------------------- | --------- |
 | Fixed domain controller | Optionally fill in a domain controller if a fixed domain controller is required |           |
-| Debug                   | Creates extra logging for debug purposes                                        |           |
+| Rename resources        | When toggled, resources will be renamed                                         |           |
 
 ### Prerequisites
 The powershell ActiveDirectory module is required for this target connector.
+
+## Built-in scripts
+
+The [built-in](./built-in) folder contains example scripts for the built-in Microsoft Active Directory target system: the OU scripts (a fixed OU and a dynamic OU example for the initial container and the enable, disable and update action), the post AD actions and the uniqueness check. See [built-in/README.md](./built-in/README.md) for details.
 
 ## Getting help
 
 > [!TIP]
 > _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html) pages_.
-
-> [!TIP]
->  _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com)_.
 
 ## HelloID docs
 

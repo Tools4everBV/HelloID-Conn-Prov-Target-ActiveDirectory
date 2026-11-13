@@ -20,39 +20,30 @@ This folder contains PowerShell scripts used in the built-in Microsoft Active Di
 
 ## `orgUnit` Folder
 
-These scripts determine which Organizational Unit (OU) a user should be placed in during specific lifecycle events.
+These scripts determine which Organizational Unit (OU) a user should be placed in during specific lifecycle events. They are examples: adjust the OUs (and, for the dynamic examples, the attribute they are based on) to the implementation.
 
-### `initialContainer.ps1`
-- **Description:** Calculates the OU where a user account should go when it is created.
-- **Use Case:** Place new accounts in different OUs based on department or other person attributes.
+The scripts are named after the setting in HelloID (*Administration > Organizational unit configuration*) they are meant for, followed by the kind of example:
 
-### `enableContainer.ps1`
-- **Description:** Calculates the OU where a user account should go when it is enabled.
-- **Use Case:** Useful when enabled users need to be placed in active OUs that differ per department.
+| Script prefix | HelloID setting |
+|---|---|
+| `initialContainer` | Initial container |
+| `enableContainer` | Move account when the account enable action is performed |
+| `disableContainer` | Move account when the account disable action is performed |
+| `updateContainer` | Move account when the account update action is performed |
 
-### `updateContainer.ps1`
-- **Description:** Calculates the OU where a user account should go when it is updated. If the account is enabled, it goes to the active OU; if disabled, to the disabled OU.
-- **Use Case:** Keeps users in the correct OU based on their current status and department.
+Every setting has two examples:
+- **`.FixedOU.ps1`:** every account goes to the same, fixed OU.
+- **`.DynamicOU.ps1`:** the OU is determined with a switch, by default based on the department of the primary contract.
 
-### `disableContainer.ps1`
-- **Description:** Calculates the OU where a user account should go when it is disabled.
-- **Use Case:** Useful when disabled users need to be placed in active OUs that differ per department.
+All scripts return the OU as `OrganizationalUnit` (canonicalName, name, objectGuid) and always return a result, also on failure (with `Success = false`).
 
-### `orgUnit.DefaultOUFallback.ps1`
-- **Description:** Calculates a target OU based on department and graduation year. If no specific OU is found, it falls back to a default OU.
-- **Use Case:** Use this when OUs are structured by department and year, and you want to ensure a fallback OU exists. Especially useful in education or large organizations where users are grouped by year or department.
+### `initialContainer.*`, `enableContainer.*` and `disableContainer.*`
+- **Description:** Calculate the OU where a user account should go when it is created, enabled or disabled. The three settings work the same way and only differ in the OU: the examples for initial and enable use an enabled OU, the examples for disable use a disabled OU.
+- **Use Case:** Place accounts in a fixed OU, or in a different OU per department or other person attribute.
 
-### `orgUnit.Disable.DynamicLocation.ReferenceExample.ps1`
-- **Description:** Calculates the OU based on user location when the account is disabled. Resolves a base OU and searches for a specific OU inside it.
-- **Use Case:** Useful in organizations where disabled accounts are organized by geographic location.
-
-### `orgUnit.Enable.DynamicLocation.ReferenceExample.ps1`
-- **Description:** Calculates the OU based on user location when the account is enabled. Works the same way as the disable variant but for active accounts.
-- **Use Case:** Use when enabled users must be placed in location-specific OUs.
-
-### `orgUnit.Update.DynamicLocation.ReferenceExample.ps1`
-- **Description:** Calculates the OU based on both location and account status (enabled or disabled) when the account is updated.
-- **Use Case:** Use this when user OU placement depends on both geographic location and whether the account is active or not.
+### `updateContainer.*`
+- **Description:** Calculates the OU where a user account should go when it is updated, using an enabled OU and a disabled OU (fixed, or per department). It uses the current OU of the account, not its enabled/disabled state: an account that is already in the disabled OU stays in (or is placed in) the disabled OU, otherwise it goes to the enabled OU.
+- **Use Case:** Use this when accounts can also be created disabled. Basing the OU on the enabled/disabled state would put those accounts directly in the disabled OU.
 
 ---
 
