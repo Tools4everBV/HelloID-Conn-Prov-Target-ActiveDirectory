@@ -1,0 +1,8 @@
+name: Workflow caller - verify changelog updated 
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  verify-changelog:
+    uses: Tools4everBV/.github/.github/workflows/verifyChangelog.yaml@main

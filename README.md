@@ -34,7 +34,7 @@ The following features are available:
 
 | Feature                                   | Supported | Actions                 | Remarks                                  |
 | ----------------------------------------- | --------- | ----------------------- | ---------------------------------------- |
-| **Account Lifecycle**                     | ✅         | Correlate               |                                          |
+| **Account Lifecycle**                     | ✅⚠️        | Correlate               | Correlate only                           |
 | **Permissions**                           | ✅         | Retrieve, Grant, Revoke | Only sub-permissions                     |
 | **Resources**                             | ✅         | Create, Update          |                                          |
 | **Entitlement Import: Accounts**          | ✅         | -                       | Only for correlation                     |
@@ -97,9 +97,6 @@ The [built-in](./built-in) folder contains example scripts for the built-in Micr
 
 > [!TIP]
 > _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html) pages_.
-
-> [!TIP]
->  _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com)_.
 
 ## HelloID docs
 

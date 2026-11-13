@@ -1,0 +1,9 @@
+name: Workflow caller - create release
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  verify-changelog:
+    if: github.event.pull_request.merged == true
+    uses: Tools4everBV/.github/.github/workflows/createRelease.yaml@main
